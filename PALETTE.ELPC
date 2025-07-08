@@ -4,8 +4,8 @@
 '--------
 .declares
 '--------
-#declare bkp_d054&, bkp_d058&, bkp_d059&
-#declare k, a$, x, y
+#declare bkp_d054&, bkp_d058&, bkp_d059&, bkp_d05e&
+#declare k, a$, x, y, cx, cy, cursor_clr
 
 
 '-------
@@ -18,6 +18,11 @@
 #define OP_MIX  = 1
 #define OP_SWAP = 2
 #define OP_FILL = 3
+
+#define KEY_UP = "{x91}"
+#define KEY_DOWN = "{x11}"
+#define KEY_LEFT = "{x9D}"
+#define KEY_RIGHT = "{x1D}"
 
 
 
@@ -32,7 +37,8 @@ trap runstop_trapper
 
   gosub draw_palette
 
-  get key a$
+  gosub parse_cursor
+
   goto cleanup
   end
 
@@ -48,9 +54,11 @@ trap runstop_trapper
   bkp_d054& = peek($d054)
   bkp_d058& = peek($d058)
   bkp_d059& = peek($d059)
+  bkp_d05e& = peek($d05e)
 
   poke $d054, $05   ' set SEAM mode CHR16 + FCLRHI
   wpoke $d058, WIDTH
+  poke $d05e, WIDTH / 2
 
   poke $d021, 14
   poke $d020, 0
@@ -58,6 +66,14 @@ trap runstop_trapper
   ' $1000 = solid fcm char
   for k = 0 to 63
     poke $40000 + k, $ff
+  next k
+
+  ' $1001 = box char
+  for k = 0 to 63
+    if int(k / 8) = 0 or int(k / 8) = 7 then poke $40040 + k, $ff:goto nxt
+    if mod(k, 8) = 0 or mod(k, 8) = 7 then poke $40040 + k, $ff:goto nxt
+    poke $40040 + k, $00
+.nxt
   next k
 
   return
@@ -73,6 +89,7 @@ trap runstop_trapper
   poke $d054, bkp_d054&
   poke $d058, bkp_d058&
   poke $d059, bkp_d059&
+  poke $d05e, bkp_d05e&
 
   end
 
@@ -118,5 +135,42 @@ trap runstop_trapper
       wpoke $ff80000 + y * WIDTH + x * 2, ((y-1) * 16 + (x - 1)) * 256
     next x
   next y
+  return
+
+
+'------------
+.parse_cursor
+'------------
+  do while 1
+    gosub draw_cursor
+    get a$
+    if a$ = KEY_RIGHT and cx < 15 then cx = cx + 1
+    if a$ = KEY_LEFT and cx > 0 then cx = cx - 1
+    if a$ = KEY_UP and cy > 0 then cy = cy - 1
+    if a$ = KEY_DOWN and cy < 15 then cy = cy + 1
+    cursor_clr = mod(cursor_clr + 1, 16)
+  loop
+  return
+
+
+'-----------
+.draw_cursor
+'-----------
+  for y = 0 to 15
+    k = (cx + 1) * 8
+    if cy <> y then k = 80 * 8
+    ' prepare GOTOX char
+    poke $ff80000 + (y + 1) * WIDTH + 160, %10010000  ' gotox bit + transp flag
+    wpoke $40800 + (y + 1) * WIDTH + 160, k
+
+    ' prepare cursor char
+    wpoke $ff80002 + (y + 1) * WIDTH + 160, cursor_clr * 256  ' white 
+    wpoke $40802 + (y + 1) * WIDTH + 160, $1001
+
+    ' prepare GOTOX char (to off-screen)
+    poke $ff80004 + (y + 1) * WIDTH + 160, %10010000  ' gotox bit + transp flag
+    wpoke $40804 + (y + 1) * WIDTH + 160, 80 * 8
+  next y
+
   return
 ÿ
