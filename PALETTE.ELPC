@@ -1,0 +1,122 @@
+#output "palette"
+
+
+'--------
+.declares
+'--------
+#declare bkp_d054&, bkp_d058&, bkp_d059&
+#declare k, a$, x, y
+
+
+'-------
+.defines
+'-------
+#define KEY_ESCAPE = chr$(27)
+#define WIDTH = 200
+
+#define OP_COPY = 0
+#define OP_MIX  = 1
+#define OP_SWAP = 2
+#define OP_FILL = 3
+
+
+
+trap runstop_trapper
+
+'----
+.main
+'----
+  gosub init
+
+  gosub clrscreen
+
+  gosub draw_palette
+
+  get key a$
+  goto cleanup
+  end
+
+
+'----
+.init
+'----
+  ' CHR16 on (for 16-bit chars)
+  ' FCLRHI on (enable SEAM for char numbers > $ff)
+
+  print "{x93}";KEY_ESCAPE;"5";
+  
+  bkp_d054& = peek($d054)
+  bkp_d058& = peek($d058)
+  bkp_d059& = peek($d059)
+
+  poke $d054, $05   ' set SEAM mode CHR16 + FCLRHI
+  wpoke $d058, WIDTH
+
+  poke $d021, 14
+  poke $d020, 0
+
+  ' $1000 = solid fcm char
+  for k = 0 to 63
+    poke $40000 + k, $ff
+  next k
+
+  return
+
+
+'---------------
+.runstop_trapper
+'---------------
+  if er<>30 then resume  ' ignore everything except run/stop
+
+.cleanup
+  trap
+  poke $d054, bkp_d054&
+  poke $d058, bkp_d058&
+  poke $d059, bkp_d059&
+
+  end
+
+
+'---------
+.clrscreen
+'---------
+  ' clear screen
+  ' for y = 0 to 49
+  '  for x = 0 to 79
+  '    wpoke $40800 + y * WIDTH + x * 2, 32
+  '    wpoke $ff80000 + y * WIDTH + x * 2, 0
+  '  next x
+  'next y
+
+  edma OP_FILL, WIDTH * 50, 32, $40800
+  edma OP_FILL, WIDTH * 50, 0, $ff80000
+
+  return
+
+
+'------------
+.draw_palette
+'------------
+  ' draw x-index
+  for x = 0 to 15
+    if x < 10 then wpoke $40800 + x * 2 + 2, $30 + x
+    if x >= 10 then wpoke $40800 + x * 2 + 2, x - 9
+    wpoke $ff80000 + x * 2 + 2, 0 * 256
+  next x
+
+  ' draw y-index
+  for y = 0 to 15
+    if y < 10 then wpoke $40800 + (y+1) * WIDTH, $30 + y
+    if y >= 10 then wpoke $40800 + (y+1) * WIDTH, y - 9
+    wpoke $ff80000 + (y+1) * WIDTH, 0 * 256
+  next y
+
+  ' draw blocks for each colour
+  for y = 1 to 16
+    for x = 1 to 16
+      wpoke $40800 + y * WIDTH + x * 2, $1000
+      wpoke $ff80000 + y * WIDTH + x * 2, ((y-1) * 16 + (x - 1)) * 256
+    next x
+  next y
+  return
+ÿ
