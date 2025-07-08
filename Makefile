@@ -1,0 +1,15 @@
+all:
+	# cp /c/Users/phuon/AppData/Roaming/xemu-lgb/mega65/hdos/11.D81 .
+	c1541 -attach COMMANDO.D81 -read commando commando.prg
+	petcat -65 -o commando.bas -- commando.prg
+	# c1541 -attach MA110.D81 -read gurce.asm,s
+
+FORCE: ;
+
+tod81:
+	petcat -space -w65 -o commando.prg -- commando.bas
+	c1541 -attach COMMANDO.D81 -delete commando -write commando.prg commando
+
+xemu:
+	/c/projs/xemu/build/bin/xmega65.native -rom /c/projs/mega65-rom/newrom.bin -hdosvirt -uartmon :4510 -8 /C/Users/phuon/AppData/Roaming/xemu-lgb/mega65/hdos/112.D81 &> /dev/null &
+
