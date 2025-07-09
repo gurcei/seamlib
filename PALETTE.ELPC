@@ -10,6 +10,8 @@
 #declare red, green, blue, red$, green$, blue$
 #declare sel_idx, idx, rev_flag, sel_val
 #declare alt_key, clip_red, clip_green, clip_blue
+#declare sel_val$, mod_flag
+
 
 '-------
 .defines
@@ -40,6 +42,7 @@
 #define KEY_MEGA_Q = "«"
 #define KEY_MEGA_C = "¼"
 #define KEY_MEGA_V = "¾"
+#define KEY_DEL = "{x14}"
 
 ' cursor states
 #define STATE_SELECT = 0
@@ -103,7 +106,9 @@ trap runstop_trapper
 '---------------
 .runstop_trapper
 '---------------
-  if er<>30 then resume  ' ignore everything except run/stop
+  ' if er<>30 then resume  ' ignore everything except run/stop
+
+  print "?";err$(er); " in line ";el
 
 .cleanup
   trap
@@ -240,6 +245,7 @@ trap runstop_trapper
   do while 1
     gosub draw_rgb_values
 
+.skipse
     get key a$
     alt_key = peek($d611) and 16
     if a$ = KEY_DOWN then sel_idx = mod(sel_idx + 1, 3)
@@ -247,8 +253,35 @@ trap runstop_trapper
     if a$ = KEY_MEGA_Q then cursor_state = STATE_SELECT : gosub clear_edit : exit
     if a$ = KEY_RIGHT then gosub incr_value
     if a$ = KEY_LEFT then gosub decr_value
+    
+    gosub check_modify
+    if mod_flag = 1 then goto skipse
   loop
 
+  return
+
+
+'------------
+.check_modify
+'------------
+  mod_flag = 0
+  if a$ = KEY_DEL then begin
+    if sel_idx = 0 then sel_val$ = red$
+    if sel_idx = 1 then sel_val$ = green$
+    if sel_idx = 2 then sel_val$ = blue$
+    
+    if len(sel_val$) > 0 then sel_val$ = left$(sel_val$,len(sel_val$)-1)
+
+    sel_val = dec(sel_val$)
+    sel_val = (sel_val and $0f) * 16 + (sel_val >> 4)
+
+    if sel_idx = 0 then red$ = sel_val$ : poke $d100 + cidx, sel_val
+    if sel_idx = 1 then green$ = sel_val$ : poke $d200 + cidx, sel_val
+    if sel_idx = 2 then blue$ = sel_val$ : poke $d300 + cidx, sel_val
+
+    gosub draw_rgb_text
+    mod_flag = 1
+  bend
   return
 
 
@@ -334,20 +367,7 @@ trap runstop_trapper
   blue$ = hex$(blue)
   blue$ = mid$(blue$,4,1) + mid$(blue$,3,1)
 
-  tclr = 0 : tx = 20 : ty = 7 : a$ = "  red: "
-  if sel_idx = 0 then a$ = a$ + KEY_REV_ON
-  a$ = a$ + red$ + KEY_REV_OFF
-  gosub draw_text
-
-  tclr = 0 : tx = 20 : ty = 8 : a$ = "green: "
-  if sel_idx = 1 then a$ = a$ + KEY_REV_ON
-  a$ = a$ + green$ + KEY_REV_OFF
-  gosub draw_text
-
-  tclr = 0 : tx = 20 : ty = 9 : a$ = " blue: "
-  if sel_idx = 2 then a$ = a$ + KEY_REV_ON
-  a$ = a$ + blue$ + KEY_REV_OFF
-  gosub draw_text
+  gosub draw_rgb_text
 
   for y = 6 to 9
     for x = 35 to 38
@@ -356,6 +376,32 @@ trap runstop_trapper
     next x
   next y
 
+  return
+
+
+'-------------
+.draw_rgb_text
+'-------------
+  tclr = 0 : tx = 20 : ty = 7 : a$ = "  red: "
+  if sel_idx = 0 then a$ = a$ + KEY_REV_ON
+  a$ = a$ + red$ + KEY_REV_OFF
+  if len(red$) = 1 then a$ = a$ + " "
+  if len(red$) = 0 then a$ = a$ + "  "
+  gosub draw_text
+
+  tclr = 0 : tx = 20 : ty = 8 : a$ = "green: "
+  if sel_idx = 1 then a$ = a$ + KEY_REV_ON
+  a$ = a$ + green$ + KEY_REV_OFF
+  if len(green$) = 1 then a$ = a$ + " "
+  if len(green$) = 0 then a$ = a$ + "  "
+  gosub draw_text
+
+  tclr = 0 : tx = 20 : ty = 9 : a$ = " blue: "
+  if sel_idx = 2 then a$ = a$ + KEY_REV_ON
+  a$ = a$ + blue$ + KEY_REV_OFF
+  if len(blue$) = 1 then a$ = a$ + " "
+  if len(blue$) = 0 then a$ = a$ + "  "
+  gosub draw_text
   return
 
 
