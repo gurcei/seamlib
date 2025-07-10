@@ -11,6 +11,9 @@
 #declare sel_idx, idx, rev_flag, sel_val
 #declare alt_key, clip_red, clip_green, clip_blue
 #declare sel_val$, mod_flag, ln$, my_err$
+#declare start_red, start_green, start_blue, start_idx
+#declare end_red, end_green, end_blue, end_idx
+#declare stp, cnt
 
 
 '-------
@@ -45,9 +48,10 @@
 #define KEY_DEL = "{x14}"
 
 ' cursor states
-#define STATE_SELECT = 0
-#define STATE_EDIT   = 1
-#define STATE_EXIT   = 2
+#define STATE_SELECT   = 0
+#define STATE_EDIT     = 1
+#define STATE_GRADIENT = 2
+#define STATE_EXIT     = 3
 
 
 trap runstop_trapper
@@ -108,7 +112,7 @@ trap runstop_trapper
 '---------------
   ' if er<>30 then resume  ' ignore everything except run/stop
 
-  my_err$ = "?" + err$(er) + " in line " + el
+  my_err$ = "?" + err$(er) + " in line " + str$(el)
 
 .cleanup
   print "{x93}";my_err$
@@ -236,8 +240,50 @@ trap runstop_trapper
     if a$ = KEY_F1 then gosub load_palette
     if a$ = KEY_F3 then gosub save_palette
 
+    if a$ = "g" then begin
+      if cursor_state = STATE_SELECT then begin
+        cursor_state = STATE_GRADIENT
+        start_red = (red >> 4) + (red and $0f) * 16
+        start_green = (green >> 4) + (green and $0f) * 16
+        start_blue = (blue >> 4) + (blue and $0f) * 16
+        start_idx = cidx
+      bend : else begin
+        cursor_state = STATE_SELECT
+        end_red = (red >> 4) + (red and $0f) * 16
+        end_green = (green >> 4) + (green and $0f) * 16
+        end_blue = (blue >> 4) + (blue and $0f) * 16
+        end_idx = cidx
+        gosub create_gradient
+        bend
+      bend
+    bend
+
     cursor_clr = mod(cursor_clr + 1, 16)
   loop
+  return
+
+
+'---------------
+.create_gradient
+'---------------
+  stp = 1
+  if end_idx < start_idx then stp = -1
+  cnt = abs(end_idx - start_idx)
+
+  for k = 0 to cnt
+    red = start_red + k * (end_red - start_red) / cnt
+    green = start_green + k * (end_green - start_green) / cnt
+    blue = start_blue + k * (end_blue - start_blue) / cnt
+
+    red = (red >> 4) + (red and $0f) * 16
+    green = (green >> 4) + (green and $0f) * 16
+    blue = (blue >> 4) + (blue and $0f) * 16
+
+    poke $d100 + start_idx + stp * k, red
+    poke $d200 + start_idx + stp * k, green
+    poke $d300 + start_idx + stp * k, blue
+  next k
+
   return
 
 
