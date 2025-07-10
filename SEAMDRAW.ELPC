@@ -1,0 +1,341 @@
+#output "seam-draw"
+
+
+'--------
+.declares
+'--------
+#declare bkp_d054&, bkp_d058&, bkp_d059&, bkp_d05e&
+#declare k, a$, x, y, my_err$, slice, frame
+#declare tx, ty, tclr, idx, rev_flag, chr, value
+#declare chr_width, chr_height, yy
+
+'-------
+.defines
+'-------
+#define KEY_ESCAPE = chr$(27)
+#define KEY_UP = "{x91}"
+#define KEY_DOWN = "{x11}"
+#define KEY_LEFT = "{x9D}"
+#define KEY_RIGHT = "{x1D}"
+
+#define KEY_F1 = "{x85}"
+#define KEY_F3 = "{x86}"
+#define KEY_F4 = "{x8A}"
+#define KEY_F5 = "{x87}"
+#define KEY_F7 = "{x88}"
+#define KEY_F8 = "{x8C}"
+#define KEY_ESC = chr$(27)
+#define KEY_REV_ON = "{x12}"
+#define KEY_REV_OFF = "{x92}"
+#define KEY_RETURN = chr$(13)
+#define KEY_MEGA_Q = "«"
+#define KEY_MEGA_C = "¼"
+#define KEY_MEGA_V = "¾"
+#define KEY_DEL = "{x14}"
+
+
+#define WIDTH = 200
+
+#define OP_COPY = 0
+#define OP_MIX  = 1
+#define OP_SWAP = 2
+#define OP_FILL = 3
+
+
+trap runstop_trapper
+
+'----
+.main
+'----
+  gosub init
+
+  gosub clrscreen
+
+  gosub draw_palette_slice
+  gosub draw_frame
+
+  gosub get_input
+
+  goto cleanup
+  end
+
+
+'---------
+.get_input
+'---------
+  do while 1
+    get key a$
+
+    if a$ = "<" then slice = mod(slice + 16 - 1, 16) : gosub draw_palette_slice
+    if a$ = ">" then slice = mod(slice + 1, 16) : gosub draw_palette_slice
+    ' mega-q = exit
+    if a$ = KEY_MEGA_Q then begin
+      tclr = 0 : tx = 30 : ty = 3 : a$ = "quit: are you sure? (y/n)"
+      gosub draw_text
+
+      get key a$
+      if a$="y" then key on : goto cleanup : else begin
+        tclr = 0 : tx = 30 : ty = 3 : a$ = "                         "
+        gosub draw_text
+      bend
+    bend
+  loop
+  return
+
+
+'----------
+.draw_frame
+'----------
+
+  ty = 1 : tx = 0 : tclr = 12
+
+  chr_width = 3
+  chr_height = 3
+
+  for yy = 1 to chr_height
+    ty = ty + 1
+    tx = 0
+
+    for x = 1 to chr_width
+      value = $1002 : gosub plot_char
+      tx = tx + 1
+
+      value = $1003
+      for k = 1 to 7
+        gosub plot_char
+        tx = tx + 1
+      next k
+    next x
+
+    value = $1006 : gosub plot_char
+
+    for y = 1 to 7
+      ty = ty + 1
+      tx = 0
+      for x = 1 to chr_width
+        value = $1004 : gosub plot_char
+        tx = tx + 1
+
+        value = $1005
+        for k = 1 to 7
+          gosub plot_char
+          tx = tx + 1
+        next k
+      next x
+
+      value = $1006 : gosub plot_char
+
+    next y
+  next yy
+
+  ty = ty + 1
+  tx = 0
+  value = $1007
+  for x = 1 to chr_width * 8
+    gosub plot_char
+    tx = tx + 1
+  next x
+
+  return
+
+
+'---------
+.plot_char
+'---------
+  wpoke $40800 + ty * WIDTH + tx * 2, value
+  wpoke $ff80000 + ty * WIDTH + tx * 2, tclr * 256
+  return
+
+
+'------------------
+.draw_palette_slice
+'------------------
+  tclr = 0 : tx = 0 : ty = 0 : a$ = "slice " + right$(hex$(slice),1) + ": "
+  gosub draw_text
+
+  for k = 0 to 15
+    wpoke $40800 + (9 + k) * 2, $1000
+    wpoke $ff80000 + (9 + k) * 2, (slice * 16 + k) * 256
+  next k
+
+  return
+
+
+'---------
+.clrscreen
+'---------
+  edma OP_FILL, WIDTH * 50, 32, $40800
+  edma OP_FILL, WIDTH * 50, 0, $ff80000
+
+  ' clear screen
+  for y = 0 to 49
+   for x = 0 to 79
+     poke $40800 + y * WIDTH + x * 2 + 1, 0
+   next x
+  next y
+
+
+  return
+
+
+'----
+.init
+'----
+  bank 128
+
+  print "{x93}";KEY_ESCAPE;"5";
+  
+  bkp_d054& = peek($d054)
+  bkp_d058& = peek($d058)
+  bkp_d059& = peek($d059)
+  bkp_d05e& = peek($d05e)
+
+  ' set SEAM mode CHR16 + FCLRHI
+  setbit $d054, 0
+  setbit $d054, 2
+
+  wpoke $d058, WIDTH
+  poke $d05e, WIDTH / 2
+
+  poke $d021, 14
+  poke $d020, 0
+
+  ' $1000 = solid fcm char
+  for k = 0 to 63
+    poke $40000 + k, $ff
+  next k
+
+  ' $1001 = box char
+  for k = 0 to 63
+    if int(k / 8) = 0 or int(k / 8) = 7 then poke $40040 + k, $ff:goto nxt
+    if mod(k, 8) = 0 or mod(k, 8) = 7 then poke $40040 + k, $ff:goto nxt
+    poke $40040 + k, $00
+.nxt
+  next k
+
+  ' $1002 = tl box
+  idx = 0
+  for y = 0 to 7
+    for x = 0 to 7
+    value = $ff
+    if y = 0 then value = $01
+    if x = 0 then value = $01
+    if y = 7 and x = 7 then value = $01
+    poke $40080 + idx, value
+    idx = idx + 1
+    next x
+  next y
+
+  ' $1003 = t box
+  idx = 0
+  for y = 0 to 7
+    for x = 0 to 7
+      value = $ff
+      if y = 0 then value = $01
+      if y = 7 and x = 7 then value = $01
+      poke $400c0 + idx, value
+      idx = idx + 1
+    next x
+  next y
+
+  ' $1004 = l box
+  idx = 0
+  for y = 0 to 7
+    for x = 0 to 7
+      value = $ff
+      if x = 0 then value = $01
+      if y = 7 and x = 7 then value = $01
+      poke $40100 + idx, value
+      idx = idx + 1
+    next x
+  next y
+
+  ' $1005 = m box
+  idx = 0
+  for y = 0 to 7
+    for x = 0 to 7
+      value = $ff
+      if y = 7 and x = 7 then value = $01
+      poke $40140 + idx, value
+      idx = idx + 1
+    next x
+  next y
+
+  ' $1006 = l line
+  idx = 0
+  for y = 0 to 7
+    for x = 0 to 7
+      value = $00
+      if x = 0 then value = $01
+      poke $40180 + idx, value
+      idx = idx + 1
+    next x
+  next y
+
+  ' $1007 = t line
+  idx = 0
+  for y = 0 to 7
+    for x = 0 to 7
+      value = $00
+      if y = 0 then value = $01
+      poke $401c0 + idx, value
+      idx = idx + 1
+    next x
+  next y
+
+
+  return
+
+
+'---------------
+.runstop_trapper
+'---------------
+  ' if er<>30 then resume  ' ignore everything except run/stop
+
+  my_err$ = "?" + err$(er) + " in line " + str$(el)
+
+.cleanup
+  print "{x93}";my_err$
+  trap
+  poke $d054, bkp_d054&
+  poke $d058, bkp_d058&
+  poke $d059, bkp_d059&
+  poke $d05e, bkp_d05e&
+
+  end
+
+
+'---------
+.draw_text
+'---------
+  idx = 0
+  rev_flag = 0
+  for k = 1 to len(a$)
+    chr = asc(mid$(a$,k,1))
+    if mid$(a$,k,1) = KEY_REV_ON then rev_flag = 1 : goto nxtdt
+    if mid$(a$,k,1) = KEY_REV_OFF then rev_flag = 0 : goto nxtdt
+
+    gosub petscii_to_screencode
+
+    if rev_flag = 1 then chr = chr or $80
+
+    wpoke $40800 + ty * WIDTH + (tx + idx) * 2, chr
+    poke $ff80000 + ty * WIDTH + (tx + idx) * 2 + 1, tclr
+    idx = idx + 1
+.nxtdt
+  next k
+  return
+
+
+'---------------------
+.petscii_to_screencode
+'---------------------
+  if chr>=$00 and chr<=$1f then chr = chr or $80 : return
+  if chr>=$20 and chr<=$3f then return
+  if chr>=$40 and chr<=$5f then chr=chr and $bf : return
+  if chr>=$60 and chr<=$7f then chr=chr and $df : return
+  if chr>=$80 and chr<=$9f then chr=chr or $40 : return
+  if chr>=$a0 and chr<=$bf then chr=(chr and $7f) or $40 : return
+  if chr>=$c0 and chr<=$fe then chr=chr and $7f : return
+  return
+ÿ

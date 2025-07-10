@@ -74,8 +74,7 @@ trap runstop_trapper
 '----
 .init
 '----
-  ' CHR16 on (for 16-bit chars)
-  ' FCLRHI on (enable SEAM for char numbers > $ff)
+  bank 128
 
   print "{x93}";KEY_ESCAPE;"5";
   
@@ -84,7 +83,10 @@ trap runstop_trapper
   bkp_d059& = peek($d059)
   bkp_d05e& = peek($d05e)
 
-  poke $d054, $05   ' set SEAM mode CHR16 + FCLRHI
+  ' set SEAM mode CHR16 + FCLRHI
+  setbit $d054, 0
+  setbit $d054, 2
+
   wpoke $d058, WIDTH
   poke $d05e, WIDTH / 2
 
@@ -128,13 +130,13 @@ trap runstop_trapper
 '---------
 .clrscreen
 '---------
-  edma OP_FILL, WIDTH * 50, 0, $40800
+  edma OP_FILL, WIDTH * 50, 32, $40800
   edma OP_FILL, WIDTH * 50, 0, $ff80000
 
   ' clear screen
   for y = 0 to 49
    for x = 0 to 79
-     wpoke $40800 + y * WIDTH + x * 2, 32
+     poke $40800 + y * WIDTH + x * 2 + 1, 0
    next x
   next y
 
