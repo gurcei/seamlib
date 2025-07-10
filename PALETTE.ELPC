@@ -10,7 +10,7 @@
 #declare red, green, blue, red$, green$, blue$
 #declare sel_idx, idx, rev_flag, sel_val
 #declare alt_key, clip_red, clip_green, clip_blue
-#declare sel_val$, mod_flag
+#declare sel_val$, mod_flag, ln$, my_err$
 
 
 '-------
@@ -108,9 +108,10 @@ trap runstop_trapper
 '---------------
   ' if er<>30 then resume  ' ignore everything except run/stop
 
-  print "?";err$(er); " in line ";el
+  my_err$ = "?" + err$(er) + " in line " + el
 
 .cleanup
+  print "{x93}";my_err$
   trap
   poke $d054, bkp_d054&
   poke $d058, bkp_d058&
@@ -232,8 +233,74 @@ trap runstop_trapper
       sel_idx = -1 : gosub draw_rgb_values
     bend
 
+    if a$ = KEY_F1 then gosub load_palette
+    if a$ = KEY_F3 then gosub save_palette
+
     cursor_clr = mod(cursor_clr + 1, 16)
   loop
+  return
+
+
+'------------
+.load_palette
+'------------
+  tclr = 0 : tx = 20 : ty = 3 : a$ = "load name: "
+  gosub draw_text
+
+  gosub seam_input
+
+  tx = 20 : a$ = "                          "
+  gosub draw_text
+
+  if len(ln$) > 0 then begin
+    bload (ln$),p($ffd3100)
+    sel_idx = -1 : gosub draw_rgb_values
+  bend
+  
+  return
+
+
+'------------
+.save_palette
+'------------
+  tclr = 0 : tx = 20 : ty = 3 : a$ = "save name: "
+  gosub draw_text
+
+  gosub seam_input
+
+  tx = 20 : a$ = "                          "
+  gosub draw_text
+
+  if len(ln$) > 0 then begin
+    delete (ln$)
+    bsave (ln$),p($ffd3100) to p($ffd3400)
+  bend
+
+  return
+
+
+'----------
+.seam_input
+'----------
+  ln$ = ""
+  do while 1
+
+    tclr = 0 : tx = 31 : ty = 3
+    a$ = ln$ + KEY_REV_ON + " " + KEY_REV_OFF + " "
+    gosub draw_text
+
+    get key a$
+    if (a$ >= "a" and a$ <= "z") or (a$ >= "0" and a$ <= "9") or a$="." then begin
+      ln$ = ln$ + a$
+    bend
+
+    if a$ = KEY_DEL then begin
+      if len(ln$) > 0 then ln$ = left$(ln$, len(ln$) - 1)
+    bend
+
+    if a$ = KEY_RETURN then exit
+  loop
+
   return
 
 
@@ -250,7 +317,7 @@ trap runstop_trapper
     alt_key = peek($d611) and 16
     if a$ = KEY_DOWN then sel_idx = mod(sel_idx + 1, 3)
     if a$ = KEY_UP then sel_idx = mod(sel_idx + 3 - 1, 3)
-    if a$ = KEY_MEGA_Q then cursor_state = STATE_SELECT : gosub clear_edit : exit
+    if a$ = KEY_MEGA_Q or a$ = KEY_ESCAPE or a$ = KEY_RETURN then cursor_state = STATE_SELECT : gosub clear_edit : exit
     if a$ = KEY_RIGHT then gosub incr_value
     if a$ = KEY_LEFT then gosub decr_value
     
@@ -282,6 +349,29 @@ trap runstop_trapper
     gosub draw_rgb_text
     mod_flag = 1
   bend
+
+  if (a$ >= "0" and a$ <= "9") or (a$ >= "a" and a$ <= "f") then begin
+
+    if sel_idx = 0 then sel_val$ = red$
+    if sel_idx = 1 then sel_val$ = green$
+    if sel_idx = 2 then sel_val$ = blue$
+
+    if len(sel_val$) = 2 then sel_val$ = a$ : goto skipcm
+    if len(sel_val$) = 1 then sel_val$ = sel_val$ + a$ : goto skipcm
+    if len(sel_val$) = 0 then sel_val$ = a$ : goto skipcm
+
+.skipcm
+    sel_val = dec(sel_val$)
+    sel_val = (sel_val and $0f) * 16 + (sel_val >> 4)
+
+    if sel_idx = 0 then red$ = sel_val$ : poke $d100 + cidx, sel_val
+    if sel_idx = 1 then green$ = sel_val$ : poke $d200 + cidx, sel_val
+    if sel_idx = 2 then blue$ = sel_val$ : poke $d300 + cidx, sel_val
+
+    gosub draw_rgb_text
+    mod_flag = 1  
+  bend
+
   return
 
 
