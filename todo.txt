@@ -1,0 +1,29 @@
+seam-draw tool
+==============
+DONE- select group of 16 colours via < and >
+- use keys 0-9 and q-y to draw one of the 16 colours in group
+- draw in 3x3 char groups as soft-sprites/pixies
+- draw 18x18 box around region to suit sorceress sprites
+- Use , and . to select between sprite frames
+- select 'add' new frame
+
+file format
+===========
+- BYTE : number of frames
+  - frame 0 details:
+    - BYTE : char-type (fcm/ncm)
+    - BYTE : default palette slice (ncm-specific)
+    - BYTE : char-width
+    - BYTE : char-height
+    - BYTE[size] : char-indices used by frame
+    - BYTE[4] : bounding box coords
+  - frame x details
+    - ...
+- BYTE : number of animations
+  - anim 0 details:
+    - BYTE : num of frames
+    - BYTE[size] : list of frame indices
+  - anim x details:
+    - ...
+- DWORD : number of bytes of pixel data for chars
+  - BYTE[size] : pixel data
