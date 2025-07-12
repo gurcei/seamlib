@@ -15,7 +15,8 @@ file format
     - BYTE : default palette slice (ncm-specific)
     - BYTE : char-width
     - BYTE : char-height
-    - BYTE[size] : char-indices used by frame
+    - BYTE : 1st char-indices used by frame
+      (we can infer that it uses chr-width x chr-height chars after this)
     - BYTE[4] : bounding box coords
   - frame x details
     - ...

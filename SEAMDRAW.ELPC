@@ -1,4 +1,4 @@
-#output "seam-draw"
+#output "seamdraw"
 
 
 '--------
@@ -7,7 +7,14 @@
 #declare bkp_d054&, bkp_d058&, bkp_d059&, bkp_d05e&
 #declare k, a$, x, y, my_err$, slice, frame
 #declare tx, ty, tclr, idx, rev_flag, chr, value
-#declare chr_width, chr_height, yy
+#declare yy, xx, fidx
+#declare cx, cy, cursor_clr, sel_clr
+#declare clr_key$(15), ln$, frame_count, char_count, anim_count
+
+#declare default_slice(100), char_type(100), char_idx(100)
+#declare chr_width(100), chr_height(100)
+#declare bb_tlx(100), bb_tly(100), bb_brx(100), bb_bry(100)
+
 
 '-------
 .defines
@@ -32,7 +39,7 @@
 #define KEY_MEGA_C = "¼"
 #define KEY_MEGA_V = "¾"
 #define KEY_DEL = "{x14}"
-
+#define KEY_CLR = "{x93}"
 
 #define WIDTH = 200
 
@@ -53,6 +60,9 @@ trap runstop_trapper
 
   gosub draw_palette_slice
   gosub draw_frame
+  gosub draw_frame_contents
+  ' gosub clear_frame_chars
+  gosub draw_frame_chars
 
   gosub get_input
 
@@ -64,10 +74,54 @@ trap runstop_trapper
 .get_input
 '---------
   do while 1
-    get key a$
+    gosub draw_cursor
+
+    get a$
 
     if a$ = "<" then slice = mod(slice + 16 - 1, 16) : gosub draw_palette_slice
     if a$ = ">" then slice = mod(slice + 1, 16) : gosub draw_palette_slice
+
+    if a$ = KEY_RIGHT then begin
+      cx = cx + 1
+      if cx = chr_width(fidx) * 8 then begin
+        cx = chr_width(fidx) * 8 - 1
+        if cy < (chr_height(fidx) * 8 - 1) then cy = cy + 1 : cx = 0
+      bend
+    bend
+
+    if a$ = KEY_LEFT then begin
+      cx = cx - 1
+      if cx = -1 then begin
+        cx = 0
+        if cy > 0 then cy = cy - 1 : cx = chr_width(fidx) * 8 - 1
+      bend
+    bend
+
+    if a$ = KEY_UP and cy > 0 then cy = cy - 1
+    if a$ = KEY_DOWN and cy < (chr_height(fidx) * 8 - 1) then cy = cy + 1
+
+    for k = 0 to 15
+      if a$ = clr_key$(k) then begin
+        sel_clr = slice * 16 + k
+        poke $ff80000 + (cy + 2) * WIDTH + cx * 2 + 1, sel_clr
+        x = mod(cx, 8)
+        y = mod(cy, 8)
+        xx = int(cx / 8)
+        yy = int(cy / 8)
+        poke char_idx(fidx) * $40 + $40 * chr_height(fidx) * xx + $40 * yy + y * 8 + x, sel_clr
+      bend
+    next k
+
+    if a$ = " " or a$ = KEY_DEL then begin
+        poke $ff80000 + (cy + 2) * WIDTH + cx * 2 + 1, 12
+        x = mod(cx, 8)
+        y = mod(cy, 8)
+        xx = int(cx / 8)
+        yy = int(cy / 8)
+        poke char_idx(fidx) * $40 + $40 * chr_height(fidx) * xx + $40 * yy + y * 8 + x, $00
+    bend
+
+
     ' mega-q = exit
     if a$ = KEY_MEGA_Q then begin
       tclr = 0 : tx = 30 : ty = 3 : a$ = "quit: are you sure? (y/n)"
@@ -79,7 +133,206 @@ trap runstop_trapper
         gosub draw_text
       bend
     bend
+
+    if a$ = KEY_F1 then gosub load_data
+    if a$ = KEY_F3 then gosub save_data
+
+    if a$ = KEY_CLR then gosub prompt_clear
+    cursor_clr = mod(cursor_clr + 1, 16)
+
   loop
+  return
+
+
+'------------
+.prompt_clear
+'------------
+  tclr = 0 : tx = 30 : ty = 3 : a$ = "clear: are you sure? (y/n)"
+  gosub draw_text
+
+  get key a$
+  if a$="y" then begin
+    key on
+    gosub clear_frame_chars
+    gosub draw_frame_contents
+  bend
+  
+  tclr = 0 : tx = 30 : ty = 3 : a$ = "                            "
+  gosub draw_text
+
+  return
+
+
+'---------
+.load_data
+'---------
+  tclr = 0 : tx = 30 : ty = 3 : a$ = "load name: "
+  gosub draw_text
+
+  tclr = 0 : tx = 41 : ty = 3
+  gosub seam_input
+
+  tx = 30 : a$ = "                               "
+  gosub draw_text
+
+  char_count = 0
+
+  if len(ln$) > 0 then begin
+    dopen #2,(ln$),r,u8
+    if ds then tclr = 2 : a$ = "disk error" : gosub draw_text : return
+
+    get#2, frame_count
+
+    for k = 0 to frame_count - 1
+      get#2, xx : char_type(k) = xx and 255
+      get#2, xx : default_slice(k) = xx and 255
+      get#2, xx : chr_width(k) = xx and 255
+      get#2, xx : chr_height(k) = xx and 255
+      get#2, xx, yy
+      char_idx(k) = (xx and 255) + (yy and 255) * 256
+      get#2, xx, yy : bb_tlx(k) = xx and 255 : bb_tly(k) = yy and 255
+      get#2, xx, yy : bb_brx(k) = xx and 255 : bb_bry(k) = yy and 255
+
+      char_count = char_count + chr_width(k) * chr_height(k)
+    next k
+
+    ' todo : add animation details here
+    get#2, xx : anim_count = xx and 255
+    if anim_count > 0 then begin
+      for k = 0 to anim_count - 1
+        ' load number of frames in anim
+        ' load list of frame indices
+      next k
+    bend
+
+    for k = 0 to char_count * $40
+      get#2, xx
+      poke char_idx(0) * $40 + k, xx and 255
+    next k
+
+    dclose #2
+
+    gosub draw_frame_contents
+  bend
+
+  return
+
+
+'---------
+.save_data
+'---------
+  tclr = 0 : tx = 30 : ty = 3 : a$ = "save name: "
+  gosub draw_text
+
+  tclr = 0 : tx = 41 : ty = 3
+  gosub seam_input
+
+  tx = 30 : a$ = "                               "
+  gosub draw_text
+
+  char_count = 0
+
+  if len(ln$) > 0 then begin
+    delete (ln$)
+    dopen #2,(ln$),w,u8
+    print #2, chr$(frame_count);
+    
+    for k = 0 to frame_count - 1
+      print #2, chr$(char_type(k));     ' char-type = fcm / ncm
+      print #2, chr$(default_slice(k));
+      print #2, chr$(chr_width(k));
+      print #2, chr$(chr_height(k));
+      print #2, chr$(char_idx(k) and $ff);
+      print #2, chr$(char_idx(k) >> 8);
+      print #2, chr$(bb_tlx(k));chr$(bb_tly(k));
+      print #2, chr$(bb_brx(k));chr$(bb_bry(k));
+
+      char_count = char_count + chr_width(k) * chr_height(k)
+    next k
+
+    ' todo : add animation details here
+    print #2, chr$(anim_count);
+    if anim_count > 0 then begin
+      for k = 0 to anim_count - 1
+        ' save number of frames in anim
+        ' save list of frame indices
+      next k
+    bend
+
+    for k = 0 to char_count * $40
+      print #2, chr$(peek(char_idx(0) * $40 + k));
+    next k
+
+    dclose #2
+    
+  bend
+
+  return
+
+
+'----------
+.seam_input
+'----------
+  ln$ = ""
+  do while 1
+
+    a$ = ln$ + KEY_REV_ON + " " + KEY_REV_OFF + " "
+    gosub draw_text
+
+    get key a$
+    if (a$ >= "a" and a$ <= "z") or (a$ >= "0" and a$ <= "9") or a$="." then begin
+      ln$ = ln$ + a$
+    bend
+
+    if a$ = KEY_DEL then begin
+      if len(ln$) > 0 then ln$ = left$(ln$, len(ln$) - 1)
+    bend
+
+    if a$ = KEY_RETURN then exit
+  loop
+
+  return
+
+
+
+'-----------
+.draw_cursor
+'-----------
+  for y = 0 to chr_height(fidx) * 8 - 1
+    k = cx * 8
+    if cy <> y then k = 80 * 8
+    ' prepare GOTOX char
+    poke $ff80000 + (y + 2) * WIDTH + 160, %10010000  ' gotox bit + transp flag
+    wpoke $40800 + (y + 2) * WIDTH + 160, k
+
+    ' prepare cursor char
+    wpoke $ff80002 + (y + 2) * WIDTH + 160, cursor_clr * 256  ' white 
+    wpoke $40802 + (y + 2) * WIDTH + 160, $1001
+
+    ' prepare GOTOX char (to off-screen)
+    poke $ff80004 + (y + 2) * WIDTH + 160, %10010000  ' gotox bit + transp flag
+    wpoke $40804 + (y + 2) * WIDTH + 160, 80 * 8
+  next y
+
+  return
+
+
+'-------------------
+.draw_frame_contents
+'-------------------
+  for xx = 0 to chr_width(fidx) - 1
+    for yy = 0 to chr_height(fidx) - 1
+      tx = xx * 8
+      ty = yy * 8 + 2
+      for y = 0 to 7
+        for x = 0 to 7
+          tclr = peek(char_idx(fidx) * $40 + $40 * chr_height(fidx) * xx + $40 * yy + y * 8 + x)
+          if tclr = 0 then tclr = 12
+          poke $ff80000 + (ty + y) * WIDTH + (tx + x) * 2 + 1, tclr
+        next x
+      next y
+    next yy
+  next xx
   return
 
 
@@ -89,14 +342,11 @@ trap runstop_trapper
 
   ty = 1 : tx = 0 : tclr = 12
 
-  chr_width = 3
-  chr_height = 3
-
-  for yy = 1 to chr_height
+  for yy = 1 to chr_height(fidx)
     ty = ty + 1
     tx = 0
 
-    for x = 1 to chr_width
+    for x = 1 to chr_width(fidx)
       value = $1002 : gosub plot_char
       tx = tx + 1
 
@@ -112,7 +362,7 @@ trap runstop_trapper
     for y = 1 to 7
       ty = ty + 1
       tx = 0
-      for x = 1 to chr_width
+      for x = 1 to chr_width(fidx)
         value = $1004 : gosub plot_char
         tx = tx + 1
 
@@ -131,9 +381,33 @@ trap runstop_trapper
   ty = ty + 1
   tx = 0
   value = $1007
-  for x = 1 to chr_width * 8
+  for x = 1 to chr_width(fidx) * 8
     gosub plot_char
     tx = tx + 1
+  next x
+
+  return
+
+
+'-----------------
+.clear_frame_chars
+'-----------------
+  for k = 0 to chr_width(fidx) * chr_height(fidx) * 64 - 1
+    poke char_idx(fidx) * 64 + k, 0
+  next k
+
+  return
+
+
+'----------------
+.draw_frame_chars
+'----------------
+  k = char_idx(fidx)
+  for x = 0 to chr_width(fidx) - 1
+    for y = 0 to chr_height(fidx) - 1
+      wpoke $40800 + (y + 10) * WIDTH + (x + 30) * 2, k
+      k = k + 1
+    next y
   next x
 
   return
@@ -157,6 +431,9 @@ trap runstop_trapper
     wpoke $40800 + (9 + k) * 2, $1000
     wpoke $ff80000 + (9 + k) * 2, (slice * 16 + k) * 256
   next k
+
+  tx = 9 : ty = 1 : a$ = "1234qwerasdfzxcv"
+  gosub draw_text
 
   return
 
@@ -182,6 +459,34 @@ trap runstop_trapper
 .init
 '----
   bank 128
+  key off
+
+  ' hard-coding a few values that will be variable in future
+  fidx = 0
+  chr_width(0) = 3
+  chr_height(0) = 3
+  char_idx(0) = $1008
+  frame_count = 1
+  anim_count = 0
+
+
+  clr_key$(0) = "1"
+  clr_key$(1) = "2"
+  clr_key$(2) = "3"
+  clr_key$(3) = "4"
+  clr_key$(4) = "q"
+  clr_key$(5) = "w"
+  clr_key$(6) = "e"
+  clr_key$(7) = "r"
+  clr_key$(8) = "a"
+  clr_key$(9) = "s"
+  clr_key$(10) = "d"
+  clr_key$(11) = "f"
+  clr_key$(12) = "z"
+  clr_key$(13) = "x"
+  clr_key$(14) = "c"
+  clr_key$(15) = "v"
+
 
   print "{x93}";KEY_ESCAPE;"5";
   

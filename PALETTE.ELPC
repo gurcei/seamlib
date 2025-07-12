@@ -75,6 +75,7 @@ trap runstop_trapper
 .init
 '----
   bank 128
+  key off
 
   print "{x93}";KEY_ESCAPE;"5";
   
