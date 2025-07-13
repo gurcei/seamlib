@@ -1,11 +1,19 @@
 seam-draw tool
 ==============
 DONE- select group of 16 colours via < and >
-- use keys 0-9 and q-y to draw one of the 16 colours in group
-- draw in 3x3 char groups as soft-sprites/pixies
+DONE- use keys 0-9 and q-y to draw one of the 16 colours in group
+DONE- draw in 3x3 char groups as soft-sprites/pixies
 - draw 18x18 box around region to suit sorceress sprites
 - Use , and . to select between sprite frames
 - select 'add' new frame
+
+seam-sprite library
+===================
+- for inputs:
+-   frame_number
+-   x, y
+- output:
+-   draw desired frame at desired location
 
 file format
 ===========
@@ -17,7 +25,9 @@ file format
     - BYTE : char-height
     - BYTE : 1st char-indices used by frame
       (we can infer that it uses chr-width x chr-height chars after this)
-    - BYTE[4] : bounding box coords
+    - BYTE: number of bounding boxes
+      - BYTE[4] : bounding box 1 coords
+      - BYTE[4] : bounding box 2 coords
   - frame x details
     - ...
 - BYTE : number of animations

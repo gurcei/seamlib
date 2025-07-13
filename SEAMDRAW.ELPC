@@ -10,10 +10,12 @@
 #declare yy, xx, fidx
 #declare cx, cy, cursor_clr, sel_clr
 #declare clr_key$(15), ln$, frame_count, char_count, anim_count
+#declare kk
 
 #declare default_slice(100), char_type(100), char_idx(100)
 #declare chr_width(100), chr_height(100)
-#declare bb_tlx(100), bb_tly(100), bb_brx(100), bb_bry(100)
+#declare bb_tlx(100,10), bb_tly(100,10), bb_brx(100,10), bb_bry(100,10)
+#declare bb_cnt(100)
 
 
 '-------
@@ -190,8 +192,13 @@ trap runstop_trapper
       get#2, xx : chr_height(k) = xx and 255
       get#2, xx, yy
       char_idx(k) = (xx and 255) + (yy and 255) * 256
-      get#2, xx, yy : bb_tlx(k) = xx and 255 : bb_tly(k) = yy and 255
-      get#2, xx, yy : bb_brx(k) = xx and 255 : bb_bry(k) = yy and 255
+      get#2, xx : bb_cnt(k) = xx and 255
+      if bb_cnt(k) > 0 then begin
+        for kk = 0 to bb_cnt(k) - 1
+          get#2, xx, yy : bb_tlx(k,kk) = xx and 255 : bb_tly(k,kk) = yy and 255
+          get#2, xx, yy : bb_brx(k,kk) = xx and 255 : bb_bry(k,kk) = yy and 255
+        next kk
+      bend
 
       char_count = char_count + chr_width(k) * chr_height(k)
     next k
@@ -244,8 +251,14 @@ trap runstop_trapper
       print #2, chr$(chr_height(k));
       print #2, chr$(char_idx(k) and $ff);
       print #2, chr$(char_idx(k) >> 8);
-      print #2, chr$(bb_tlx(k));chr$(bb_tly(k));
-      print #2, chr$(bb_brx(k));chr$(bb_bry(k));
+          
+      print #2, chr$(bb_cnt(k));
+      if bb_cnt(k) > 0 then begin
+        for kk = 0 to bb_cnt(0) - 1
+          print #2, chr$(bb_tlx(k, kk));chr$(bb_tly(k, kk));
+          print #2, chr$(bb_brx(k, kk));chr$(bb_bry(k, kk));
+        next kk
+      bend
 
       char_count = char_count + chr_width(k) * chr_height(k)
     next k
