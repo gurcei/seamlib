@@ -9,7 +9,7 @@
 #declare my_err$, k, idx, x, y, value
 #declare chr_width(100), chr_height(100), char_idx(100)
 #declare objx, objy, oldyy, minyy, maxyy, yybot 
-#declare a$, yy
+#declare a$, yy, offsy
 
 
 '-------
@@ -217,13 +217,13 @@ trap runstop_trapper
 .draw_object
 '-----------
   yy = int(objy / 8)
-  y = mod(objy, 8)
+  yybot = yy + chr_height(fidx) ' - 1
+  offsy = mod(objy, 8)
 
   ' clear prior position (if needbe)
   if oldyy <> INVALID and yy <> oldyy then begin
     minyy = oldyy
-    maxyy = oldyy + chr_height(fidx) - 1
-    yybot = yy + chr_height(fidx) - 1
+    maxyy = oldyy + chr_height(fidx) ' - 1
     if minyy < yy and yy < maxyy then maxyy = yy - 1
     if minyy < yybot and yybot < maxyy then minyy = yybot + 1
 
@@ -238,6 +238,12 @@ trap runstop_trapper
   for x = 0 to chr_width(fidx) - 1
     for y = 0 to chr_height(fidx) - 1
       wpoke $40800 + (yy + y) * WIDTH + 162 + x * 2, idx
+
+      ' copy last y-line an extra line below (to help with y scrolling)
+      if y = chr_height(fidx) - 1 then begin
+        wpoke $40800 + (yy + y + 1) * WIDTH + 162 + x * 2, idx
+      bend
+
       idx = idx + 1
     next y
   next x
@@ -246,10 +252,29 @@ trap runstop_trapper
   x = objx
   if objx < 0 then x = 1024 + objx
 
+  k = x + (offsy * 32 + 16) * 256
+
+  ' set initial rowmask
+  poke $ff80000 + yy * WIDTH + 160, %10011000
+  poke $ff80000 + yy * WIDTH + 160 + 1, 255 << offsy and 255
+
+
   ' set initial gotox char
   for y = yy to yy + chr_height(fidx) - 1
-    wpoke $40800 + y * WIDTH + 160, x
+    if y <> yy then begin
+      poke $ff80000 + y * WIDTH + 160, %10010000
+    bend
+    wpoke $40800 + y * WIDTH + 160, k
   next y
+
+  ' set final yoffs
+  k = x + ( ((8-offsy) and 7) * 32) * 256
+  wpoke $40800 + yybot * WIDTH + 160, k
+
+  ' set final rowmask
+  poke $ff80000 + yybot * WIDTH + 160, %10011000
+  poke $ff80000 + yybot * WIDTH + 160 + 1, 255 >> (8 - offsy) and 255
+
 
   oldyy = yy
   return
