@@ -9,13 +9,15 @@
 #declare my_err$, k, idx, x, y, value
 #declare chr_width(100), chr_height(100), char_idx(100)
 #declare objx, objy, oldyy, minyy, maxyy, yybot 
-#declare a$, yy, offsy
-
+#declare a$, yy, offsy, tmp, tmpx, tmpy
+#declare tclr, tx, ty, rev_flag, chr
 
 '-------
 .defines
 '-------
 #define KEY_ESCAPE = chr$(27)
+#define KEY_REV_ON = "{x12}"
+#define KEY_REV_OFF = "{x92}"
 #define KEY_UP = "{x91}"
 #define KEY_DOWN = "{x11}"
 #define KEY_LEFT = "{x9D}"
@@ -23,6 +25,12 @@
 #define KEY_MEGA_Q = "«"
 
 #define WIDTH = 200
+
+#define OP_COPY = 0
+#define OP_MIX  = 1
+#define OP_SWAP = 2
+#define OP_FILL = 3
+
 
 #define INVALID = -666
 
@@ -32,6 +40,8 @@ trap runstop_trapper
 .main
 '----
   gosub init
+
+  gosub clrscreen
 
   fidx = 0
   gosub stage_object
@@ -180,6 +190,24 @@ trap runstop_trapper
   end
 
 
+'---------
+.clrscreen
+'---------
+  edma OP_FILL, WIDTH * 50, 32, $40800
+  edma OP_FILL, WIDTH * 50, 0, $ff80000
+
+  ' clear screen
+  for y = 0 to 49
+   for x = 0 to 79
+     poke $40800 + y * WIDTH + x * 2 + 1, 0
+   next x
+  next y
+
+
+  return
+
+
+
 '------------
 .stage_object
 '------------
@@ -202,18 +230,29 @@ trap runstop_trapper
 .user_input
 '----------
   do while 1
+    gosub draw_coords
     gosub draw_object
 
     get key a$
-    if a$ = KEY_LEFT then gosub handle_left
-    if a$ = KEY_RIGHT then gosub handle_right
-    if a$ = KEY_UP then gosub handle_up
-    if a$ = KEY_DOWN then gosub handle_down
+    if a$ = KEY_LEFT then objx = objx - 1
+    if a$ = KEY_RIGHT then objx = objx + 1
+    if a$ = KEY_UP then objy = objy - 1
+    if a$ = KEY_DOWN then objy = objy + 1
     if a$ = KEY_MEGA_Q then goto cleanup
   loop
   return
 
 
+'-----------
+.draw_coords
+'-----------
+  tclr = 0 : tx = 5 : ty = 5
+  a$ = "x =" + str$(objx) + ", y =" + str$(objy) + "     "
+  gosub draw_text
+  return
+
+
+'-----------
 .draw_object
 '-----------
   yy = int(objy / 8)
@@ -233,15 +272,21 @@ trap runstop_trapper
     next y
   bend
 
+  vsync 250
+  border 2
+
   ' draw chars on desired yrows, and at right objx position
   idx = char_idx(fidx)
-  for x = 0 to chr_width(fidx) - 1
-    for y = 0 to chr_height(fidx) - 1
-      wpoke $40800 + (yy + y) * WIDTH + 162 + x * 2, idx
+  tmpx = chr_width(fidx) - 1
+  tmpy = chr_height(fidx) - 1
+  for x = 0 to tmpx
+    for y = 0 to tmpy
+      k = $40800 + (yy + y) * WIDTH + 162 + x * 2
+      wpoke k, idx
 
       ' copy last y-line an extra line below (to help with y scrolling)
-      if y = chr_height(fidx) - 1 then begin
-        wpoke $40800 + (yy + y + 1) * WIDTH + 162 + x * 2, idx
+      if y = tmpy then begin
+        wpoke k + WIDTH, idx
       bend
 
       idx = idx + 1
@@ -255,16 +300,18 @@ trap runstop_trapper
   k = x + (offsy * 32 + 16) * 256
 
   ' set initial rowmask
-  poke $ff80000 + yy * WIDTH + 160, %10011000
-  poke $ff80000 + yy * WIDTH + 160 + 1, 255 << offsy and 255
+  tmp = $ff80000 + yy * WIDTH + 160
+  poke tmp, %10011000
+  poke tmp + 1, 255 << offsy and 255
 
 
   ' set initial gotox char
-  for y = yy to yy + chr_height(fidx) - 1
+  for y = yy to yy + tmpy
+    tmp = y * WIDTH + 160
     if y <> yy then begin
-      poke $ff80000 + y * WIDTH + 160, %10010000
+      poke $ff80000 + tmp, %10010000
     bend
-    wpoke $40800 + y * WIDTH + 160, k
+    wpoke $40800 + tmp, k
   next y
 
   ' set final yoffs
@@ -272,38 +319,47 @@ trap runstop_trapper
   wpoke $40800 + yybot * WIDTH + 160, k
 
   ' set final rowmask
-  poke $ff80000 + yybot * WIDTH + 160, %10011000
-  poke $ff80000 + yybot * WIDTH + 160 + 1, 255 >> (8 - offsy) and 255
-
+  tmp = $ff80000 + yybot * WIDTH + 160
+  poke tmp, %10011000
+  poke tmp + 1, 255 >> (8 - offsy) and 255
 
   oldyy = yy
-  return
 
-
-'-----------
-.handle_left
-'-----------
-  objx = objx - 1
-  return
-
-
-'------------
-.handle_right
-'------------
-  objx = objx + 1
+  border 0
   return
 
 
 '---------
-.handle_up
+.draw_text
 '---------
-  objy = objy - 1
+  idx = 0
+  rev_flag = 0
+  for k = 1 to len(a$)
+    chr = asc(mid$(a$,k,1))
+    if mid$(a$,k,1) = KEY_REV_ON then rev_flag = 1 : goto nxtdt
+    if mid$(a$,k,1) = KEY_REV_OFF then rev_flag = 0 : goto nxtdt
+
+    gosub petscii_to_screencode
+
+    if rev_flag = 1 then chr = chr or $80
+
+    wpoke $40800 + ty * WIDTH + (tx + idx) * 2, chr
+    poke $ff80000 + ty * WIDTH + (tx + idx) * 2 + 1, tclr
+    idx = idx + 1
+.nxtdt
+  next k
   return
 
 
-'-----------
-.handle_down
-'-----------
-  objy = objy + 1
+'---------------------
+.petscii_to_screencode
+'---------------------
+  if chr>=$00 and chr<=$1f then chr = chr or $80 : return
+  if chr>=$20 and chr<=$3f then return
+  if chr>=$40 and chr<=$5f then chr=chr and $bf : return
+  if chr>=$60 and chr<=$7f then chr=chr and $df : return
+  if chr>=$80 and chr<=$9f then chr=chr or $40 : return
+  if chr>=$a0 and chr<=$bf then chr=(chr and $7f) or $40 : return
+  if chr>=$c0 and chr<=$fe then chr=chr and $7f : return
   return
 ÿ
