@@ -15,3 +15,4 @@ xemu:
 
 asmhelper.prg: asmhelper.a
 	acme --cpu m65 -v4 -l asmhelper.sym -r asmhelper.rep asmhelper.a
+	c1541 -attach /c/Users/phuon/AppData/Roaming/xemu-lgb/mega65/hdos/112.D81 -delete asmhelper -write asmhelper.prg asmhelper
