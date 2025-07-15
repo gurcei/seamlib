@@ -130,6 +130,8 @@ WIDTH = 200
 
 !macro multiply16 .in1, .in2, .out {
 	phz
+  phy
+  phx
 	ldz #$00
 	ldy #$00
 	ldx .in1+1
@@ -141,8 +143,10 @@ WIDTH = 200
 	stq MULTINB
 
 	ldq MULTOUT
-	stx .out
-	sty .out+1
+	stx .out+1
+	sta .out
+  plx
+  ply
 	plz
 }
 
@@ -309,6 +313,8 @@ WIDTH = 200
 * = $1600
 objx: !word $00
 objy: !word $00
+chr_width: !byte $00
+chr_height: !byte $00
 
 * = $1610
   jmp draw_object     // 1600
@@ -339,11 +345,13 @@ draw_object:
 // input:
 //   - word objx@1600
 //   - word objy@1602
-//   - X = chr_width, Y = chr_height
-    stx chr_width
-    sty chr_height
+//   - byte chr_width@1604
+//   - byte chr_height@1605
 
 //  yy = int(objy / 8)
+    lda #$02
+    sta $d020
+
     +copy16 tempval, objy
     +lsr16_by tempval, 3
     lda tempval
@@ -450,8 +458,8 @@ skip_adjust_minyy:
 
       iny
       cpy maxyy
-      bcc -
-      beq -
+      lbcc -
+      lbeq -
 //    next y
 //  bend
 skip_clear_old_position:
@@ -494,7 +502,7 @@ lpy:
 
         sty inputw2
         lda #$00
-        sta inputw1+2
+        sta inputw2+1
 
         +add16 inputw1, inputw2, outputw
 
@@ -806,7 +814,8 @@ skip_poke:
     lda #$ff
     cpx #$00
     beq +
--   asr
+-   clc
+    ror
     dex
     bne -
 +
@@ -819,13 +828,14 @@ skip_poke:
 //
 //  border 0
 //  return
+
+    lda #$00
+    sta $d020
   rts
 
 
 // VARIABLES
 // ---------
-chr_width: !byte $00
-chr_height: !byte $00
 yy: !byte $00
 yybot: !byte $00
 offsy: !byte $00

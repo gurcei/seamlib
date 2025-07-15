@@ -55,6 +55,8 @@ trap runstop_trapper
 '----
 .init
 '----
+  bank 0
+  bload "asmhelper"
   bank 128
   key off
 
@@ -255,6 +257,19 @@ trap runstop_trapper
 '-----------
 .draw_object
 '-----------
+  vsync 250
+  border 3
+  bank 0
+  wpoke $1600, objx
+  wpoke $1602, objy
+  poke $1604, chr_width(fidx)
+  poke $1605, chr_height(fidx)
+  bank 128 : border 7 : bank 0
+^^  sys to $1610, i1
+  bank 128
+  return
+
+  ' TODO: remove below once sys call above works
   yy = int(objy / 8)
   yybot = yy + chr_height(fidx) ' - 1
   offsy = mod(objy, 8)
