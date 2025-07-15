@@ -1,0 +1,2111 @@
+!to "asmhelper.prg", cbm
+
+// DEFINES
+// =======
+ZEROPTR = $1c
+ONEPTR = $29
+FOURPTR = $18
+CLRPTR = $20
+
+// for megaplot (some overlap)
+COLRBASE = $0000 // Fixed to Bank ff8
+ROWPTR = $18
+COLPTR = $1c
+MULTINA = $d770
+MULTINB = $d774
+MULTOUT = $d778
+
+
+// BANK4 VAR INTERFACE
+// ===================
+DEFAULT_RED = $20
+DEFAULT_GREEN = $22
+DEFAULT_BLUE = $24
+CURR_RED = $26
+CURR_GREEN = $28
+CURR_BLUE = $2a
+DATA_ADDR = $2c	// src of dma
+CDATA_ADDR = $2e
+SCRADDR = $30	// dest of dma
+CLRADDR = $32
+INC_FRM = $34
+STARX = $36
+STARVX = $38
+
+MULTINA = $d770
+MULTINB = $d774
+MULTOUT = $d778
+
+
+// MACROS
+// ======
+!macro copy16 .dest, .src {
+	lda .src
+	sta .dest
+	lda .src+1
+	sta .dest+1
+}
+
+!macro set16 .dest, .val {
+	lda #<.val
+	sta .dest
+	lda #>.val
+	sta .dest+1
+}
+
+!macro lsr16 .loc {
+	clc
+	lda .loc+1
+	ror
+	sta .loc+1
+	lda .loc
+	ror
+	sta .loc
+}
+
+!macro lsr16_by .loc, .cnt {
+	ldx #.cnt
+	cpx #$00
+	beq +
+-	+lsr16 .loc
+	dex
+	bne -
++ 
+}
+
+!macro copy_basic_int .bk4loc, .out {
+	+set0ptr_from_4ptr .bk4loc
+	ldz #$00
+	lda [ZEROPTR],z
+	sta .out+1
+	inz
+	lda [ZEROPTR],z
+	sta .out
+}
+
+!macro set0ptr_from_4ptr .b4offs {
+	phz
+	ldz #.b4offs
+	lda [FOURPTR],z
+	sta ZEROPTR
+	inz
+	lda [FOURPTR],z
+	sta ZEROPTR+1
+	plz
+}
+
+!macro set1ptr_from_4ptr .b4offs {
+	phz
+	ldz #.b4offs
+	lda [FOURPTR],z
+	sta ONEPTR
+	inz
+	lda [FOURPTR],z
+	sta ONEPTR+1
+	plz
+}
+
+!macro add16 .in1, .in2, .out {
+	clc
+	lda .in1
+	adc .in2
+	sta .out
+	lda .in1+1
+	adc .in2+1
+	sta .out+1
+	clc
+}
+
+!macro subtract16 .in1, .in2, .out {
+	sec
+	lda .in1
+	sbc .in2
+	sta .out
+	lda .in1+1
+	sbc .in2+1
+	sta .out+1
+	clc
+}
+
+!macro multiply16 .in1, .in2, .out {
+	phz
+	ldz #$00
+	ldy #$00
+	ldx .in1+1
+	lda .in1
+	stq MULTINA
+
+	ldx .in2+1
+	lda .in2
+	stq MULTINB
+
+	ldq MULTOUT
+	stx .out
+	sty .out+1
+	plz
+}
+
+!macro multiply8 .in1, .in2, .out {
+	phz
+	ldz #$00
+	ldy #$00
+	ldx #$00
+	lda .in1
+	stq MULTINA
+
+	lda .in2
+	stq MULTINB
+
+	ldq MULTOUT
+	stx .out+1
+	sta .out
+	plz
+}
+
+!macro wpoke_b4 .offs, .intvar {
+	ldz#.offs
+	lda .intvar
+	sta [FOURPTR],z
+	inz
+	lda .intvar+1
+	sta [FOURPTR],z
+}
+
+!macro poke_b4 .offs, .bytevar {
+	ldz#.offs
+	lda .bytevar
+	sta [FOURPTR],z
+}
+
+!macro poke_b4_val .offs, .byte {
+	ldz#.offs
+	lda#.byte
+	sta [FOURPTR],z
+}
+
+!macro fade_clr1_to_white_step .bk4ptr, .palette_loc {
+	// flip_var = default_red&(k)
+	+set1ptr_from_4ptr .bk4ptr
+	lda [ONEPTR],z
+
+	// gosub flip_nibble
+	jsr flip_nibble
+
+	// clr1 = flip_var
+	sta clr1+1
+	lda #$00
+	sta clr1
+	
+	// clr2 = $f0   ' (white)
+	sta clr2
+	lda #$f0
+	sta clr2+1
+	
+	jsr calc_faded_colour
+
+	// poke $d100+k, flip_var
+	phz
+	plx
+	sta .palette_loc,x
+}
+
+!macro fade_clr1_to_black_step .bk4ptr, .palette_loc {
+	// flip_var = default_red&(k)
+	+set1ptr_from_4ptr .bk4ptr
+	lda [ONEPTR],z
+
+	// gosub flip_nibble
+	jsr flip_nibble
+
+	// clr1 = flip_var
+	sta clr1+1
+	lda #$00
+	sta clr1
+	
+	// clr2 = $00   ' (black)
+	sta clr2
+	sta clr2+1
+	
+	jsr calc_faded_colour
+
+	// poke $d100+k, flip_var
+	phz
+	plx
+	sta .palette_loc,x
+}
+
+!macro fade_clr1_to_clr2_step .bk4ptr1, .bk4ptr2, .palette_loc {
+	// flip_var = curr_red&(k)
+	+set1ptr_from_4ptr .bk4ptr1
+	lda [ONEPTR],z
+
+	// gosub flip_nibble
+	jsr flip_nibble
+
+	// clr1 = flip_var
+	sta clr1+1
+	lda #$00
+	sta clr1
+	
+	// flip_var = default_red&(k)
+	+set1ptr_from_4ptr .bk4ptr2
+	lda [ONEPTR],z
+
+	// gosub flip_nibble
+	jsr flip_nibble
+
+	// clr2 = flip_var
+	sta clr2+1
+	lda #$00
+	sta clr2
+	
+	jsr calc_faded_colour
+
+	// poke $d100+k, flip_var
+	phz
+	plx
+	sta .palette_loc,x
+}
+
+!macro edma_transp .transp, .cmd, .length, .src_addr, .src_bank, .dst_addr, .dst_bank, .dst_mb {
+	!byte $81	// dest addr MB selector
+	!byte .dst_mb	// destination megabyte
+	!byte $07	// enable transparency
+	!byte $86	// set transparency
+	!byte .transp	// transparency value
+	!byte $00	// end of options
+
+	!byte .cmd	// CMD = COPY + chain
+
+	!word .length	// length
+	!word .src_addr	// src addr = $54000
+	!byte .src_bank	// src bank = $05
+	!word .dst_addr	// dest addr = $54000
+	!byte .dst_bank	// dest bank = $05
+	!byte $00	// CMD msb (ignore)
+	!word $0000	// modulo (ignore)
+}
+
+!macro edma .cmd, .length, .src_addr, .src_bank, .dst_addr, .dst_bank, .dst_mb {
+	!byte $06	// disable transparency
+	!byte $81	// dest addr MB selector
+	!byte .dst_mb	// destination megabyte
+	!byte $00	// end of options
+
+	!byte .cmd	// CMD = COPY + chain
+
+	!word .length	// length
+	!word .src_addr	// src addr = $54000
+	!byte .src_bank	// src bank = $05
+	!word .dst_addr	// dest addr = $54000
+	!byte .dst_bank	// dest bank = $05
+	!byte $00	// CMD msb (ignore)
+	!word $0000	// modulo (ignore)
+}
+
+// ROUTINES
+// ========
+* = $1600
+  jmp draw_object     // 1600
+// 	jmp fade_colours_to_white	// 7e00
+// 	jmp fade_between_colours	// 7e03
+// 	jmp cycle_alt_palette		// 7e06
+// 	jmp draw_petscii_frame		// 7e09
+// 	jmp fade_colours_to_black	// 7e0c
+// 	jmp iter_starfield		// 7e0f
+// 	jmp scroll_canvas_right		// 7e12
+// 	jmp page_flip			// 7e15
+// 	// megaplot routines
+// 	// -----------------
+// 	jmp init_and_plot		// 7e18
+// 	jmp init			// 7e1b
+// 	jmp plot			// 7e1e
+// 	jmp line			// 7e21
+// 	jmp set_colour			// 7e24
+// 	// rotate routines
+// 	// ---------------
+// 	jmp iter_greet_text		// 7e27
+// 	jmp page_flip_faster		// 7e2a
+
+
+//---------------------
+fade_colours_to_white: // (a=fadeval)
+//---------------------
+	//sei
+	// store a into fadeval
+	sta fadeval+1
+	lda #$00
+	sta fadeval
+
+	// prepare four pointer
+	lda #$00
+	sta FOURPTR
+	sta FOURPTR+1
+	sta FOURPTR+3
+	lda #$04
+	sta FOURPTR+2
+
+	// INPUT: fadeval=0 to 128
+	// tempval = fadeval / 128
+	+copy16 tempval, fadeval
+	+lsr16_by tempval, 7
+
+	//for k = 0 to 31
+	ldz #$00
+
+-		+fade_clr1_to_white_step DEFAULT_RED, $d100
+		+fade_clr1_to_white_step DEFAULT_GREEN, $d200
+		+fade_clr1_to_white_step DEFAULT_BLUE, $d300
+
+	//next k
+	inz
+	cpz #32
+	lbne -
+
+	// return
+	cli
+	rts
+
+
+//---------------------
+fade_between_colours: // (a=fadeval)
+//---------------------
+	//sei
+	// store a into fadeval
+	sta fadeval+1
+	lda #$00
+	sta fadeval
+
+	// prepare four pointer
+	lda #$00
+	sta FOURPTR
+	sta FOURPTR+1
+	sta FOURPTR+3
+	lda #$04
+	sta FOURPTR+2
+
+	// INPUT: fadeval=0 to 128
+	// tempval = fadeval / 128
+	+copy16 tempval, fadeval
+	+lsr16_by tempval, 7
+
+	//for k = 0 to 31
+	ldz #$00
+
+kloop:
+		+fade_clr1_to_clr2_step CURR_RED, DEFAULT_RED, $d100
+red:
+		+fade_clr1_to_clr2_step CURR_GREEN, DEFAULT_GREEN, $d200
+green:
+		+fade_clr1_to_clr2_step CURR_BLUE, DEFAULT_BLUE, $d300
+blue:
+
+	//next k
+	inz
+	cpz #32
+	lbne kloop
+
+	// return
+	cli
+	rts
+
+
+//---------------
+cycle_alt_palette:
+//---------------  // a = base colour to start from (e.g. y=12 means cycle from 12 to 31(
+	tay
+
+	// prepare four pointer
+	lda #$00
+	sta FOURPTR
+	sta FOURPTR+1
+	sta FOURPTR+3
+	lda #$04
+	sta FOURPTR+2
+
+	// tempr = peek($d100+12)
+	lda $d100,y
+	sta tempr
+	// tempg = peek($d200+12)
+	lda $d200,y
+	sta tempg
+	// tempb = peek($d300+12)
+	lda $d300,y
+	sta tempb
+
+	// for k = 12 to 30
+	tya
+	tax
+		// poke $d100+k, peek($d100+k+1)
+-		lda $d101,x
+		sta $d100,x
+		// poke $d200+k, peek($d200+k+1)
+		lda $d201,x
+		sta $d200,x
+		// poke $d300+k, peek($d300+k+1)
+		lda $d301,x
+		sta $d300,x
+	// next k
+	inx
+	cpx #31
+	bne -
+
+	// poke $d100+31, tempr
+	lda tempr
+	sta $d100+31
+	// poke $d200+31, tempg
+	lda tempg
+	sta $d200+31
+	// poke $d300+31, tempb
+	lda tempb
+	sta $d300+31
+	
+	// ----------------------------
+
+do_curr:
+	tya
+	taz
+	// tempr = curr_red&(12)
+	+set1ptr_from_4ptr CURR_RED
+	lda [ONEPTR],z
+	sta tempr
+	// tempg = curr_green&(12)
+	+set1ptr_from_4ptr CURR_GREEN
+	lda [ONEPTR],z
+	sta tempg
+	// tempb = curr_blue&(12)
+	+set1ptr_from_4ptr CURR_BLUE
+	lda [ONEPTR],z
+	sta tempb
+
+	// for k = 12 to 30
+	tya
+	taz
+		// curr_red&(k) = curr_red&(k+1)
+-		+set1ptr_from_4ptr CURR_RED
+		inz
+		lda [ONEPTR],z
+		dez
+		sta [ONEPTR],z
+		// curr_green&(k) = curr_green&(k+1)
+		+set1ptr_from_4ptr CURR_GREEN
+		inz
+		lda [ONEPTR],z
+		dez
+		sta [ONEPTR],z
+		// curr_blue&(k) = curr_blue&(k+1)
+		+set1ptr_from_4ptr CURR_BLUE
+		inz
+		lda [ONEPTR],z
+		dez
+		sta [ONEPTR],z
+	// next k
+	inz
+	cpz #31
+	bne -
+
+	ldz #31
+	// curr_red&(31) = tempr
+	+set1ptr_from_4ptr CURR_RED
+	lda tempr
+	sta [ONEPTR],z
+	// curr_green&(31) = tempg
+	+set1ptr_from_4ptr CURR_GREEN
+	lda tempg
+	sta [ONEPTR],z
+	// curr_blue&(31) = tempb
+	+set1ptr_from_4ptr CURR_BLUE
+	lda tempb
+	sta [ONEPTR],z
+	
+	// ----------------------------
+
+do_default:
+	tya
+	taz
+	// tempr = default_red&(12)
+	+set1ptr_from_4ptr DEFAULT_RED
+	lda [ONEPTR],z
+	sta tempr
+	// tempg = default_green&(12)
+	+set1ptr_from_4ptr DEFAULT_GREEN
+	lda [ONEPTR],z
+	sta tempg
+	// tempb = default_blue&(12)
+	+set1ptr_from_4ptr DEFAULT_BLUE
+	lda [ONEPTR],z
+	sta tempb
+
+	// for k = 12 to 30
+	tya
+	taz
+		// default_red&(k) = default_red&(k+1)
+-		+set1ptr_from_4ptr DEFAULT_RED
+		inz
+		lda [ONEPTR],z
+		dez
+		sta [ONEPTR],z
+		// default_green&(k) = default_green&(k+1)
+		+set1ptr_from_4ptr DEFAULT_GREEN
+		inz
+		lda [ONEPTR],z
+		dez
+		sta [ONEPTR],z
+		// default_blue&(k) = default_blue&(k+1)
+		+set1ptr_from_4ptr DEFAULT_BLUE
+		inz
+		lda [ONEPTR],z
+		dez
+		sta [ONEPTR],z
+	// next k
+	inz
+	cpz #31
+	bne -
+
+	ldz #31
+	// default_red&(31) = tempr
+	+set1ptr_from_4ptr DEFAULT_RED
+	lda tempr
+	sta [ONEPTR],z
+	// default_green&(31) = tempg
+	+set1ptr_from_4ptr DEFAULT_GREEN
+	lda tempg
+	sta [ONEPTR],z
+	// default_blue&(31) = tempb
+	+set1ptr_from_4ptr DEFAULT_BLUE
+	lda tempb
+	sta [ONEPTR],z
+
+	//return
+	rts
+
+
+//------
+draw_petscii_frame: // (a = frmy, x = frmy1, y = frmw)
+//------
+// input: word data_addr (always bank 4)
+// input: word cdata_addr (always bank 4)
+// input: word scraddr (always bank 5)
+// input: word clraddr (always bank 5)
+
+	// save passed regs
+	sta frmy+1
+	lda #$00
+	sta frmy
+
+	stx frmy1+1
+	sta frmy1
+
+	sty frmw
+
+	// prepare zero pointer
+	lda #$00
+	sta ZEROPTR
+	sta ZEROPTR+1
+	sta ZEROPTR+2
+	sta ZEROPTR+3
+
+	sta FOURPTR
+	sta FOURPTR+1
+	sta FOURPTR+3
+	lda #$04
+	sta FOURPTR+2
+
+	sta CLRPTR
+	sta CLRPTR+1
+	lda #$f8
+	sta CLRPTR+2
+	lda #$0f
+	sta CLRPTR+3
+
+	+copy_basic_int DATA_ADDR, data_addr
+	+copy_basic_int CDATA_ADDR, cdata_addr
+	+copy_basic_int SCRADDR, scraddr
+	+copy_basic_int CLRADDR, clraddr
+	+copy_basic_int INC_FRM, inc_frm
+
+	// for yy=frmy1 to frmy step -inc(frameidx)
+	+copy16 yy, frmy1
+	
+foryyloop:
+		//if scraddr < 0 then goto for_skip
+		lda scraddr+1
+		bpl +
+		rts
+
+		// if yy < frmy then yy = frmy
++               lda yy+1
+		cmp frmy+1
+		bmi force_yy // if hi(yy) < hi(frmy)
+		bne +   // jump if hi(yy) > hi(frmy)
+
+		lda yy
+		cmp frmy
+		bpl +
+
+force_yy:
+		+copy16 yy, frmy
+		
+		// ' draw chars
+		// ' ----------
+		// src_addr = data_addr + int(yy-frmy) * frmw
++ 		lda #$00
+		sta tmpw+1
+		sec
+		lda yy+1
+		sbc frmy+1
+		sta tmpw	// tmpw = int(yy-frmy)
+
+		+multiply8 tmpw, frmw, tmpw		// tmpw = frmw * tmpw
+		+add16 data_addr, tmpw, src_addr	// src_addr = data_addr + tmpw
+
+		// dest_addr = scraddr
+		+copy16 dest_addr, scraddr
+
+		// length = frmw
+		lda frmw
+		sta length
+		lda #$00
+		sta length+1
+
+		// transp = 102
+		lda #102
+		sta transp
+
+		// gosub transparent_dma
+		jsr transparent_dma
+		
+		// src_addr = cdata_addr + int(yy-frmy) * frmw
+		+add16 cdata_addr, tmpw, src_addr	// src_addr = cdata_addr + tmpw
+
+		// dest_addr = clraddr
+		+copy16 dest_addr, clraddr
+
+		//length = frmw
+		lda frmw
+		sta length
+		lda #$00
+		sta length+1
+
+		// transp = $ff
+		lda #$ff
+		sta transp
+
+		// gosub transparent_dma
+		jsr transparent_dma
+		
+		lda #80
+		sta tmpw
+		lda #$00
+		sta tmpw+1
+		// scraddr = scraddr - 80
+		+subtract16 scraddr, tmpw, scraddr
+
+		// clraddr = clraddr - 80
+		+subtract16 clraddr, tmpw, clraddr
+
+	// next yy
+	// for yy=frmy1 to frmy step -inc(frameidx)
+	// if yy == frmy1 then exit
+	lda yy
+	cmp frmy
+	bne nextlp
+
+	lda yy+1
+	cmp frmy+1
+	bne nextlp
+	rts
+
+nextlp:
+	+subtract16 yy, inc_frm, yy
+
+	jmp foryyloop
+	
+	// return
+	rts
+
+
+//---------------------
+fade_colours_to_black: // (a=fadeval)
+//---------------------
+	//sei
+	// store a into fadeval
+	sta fadeval+1
+	lda #$00
+	sta fadeval
+
+	// prepare four pointer
+	lda #$00
+	sta FOURPTR
+	sta FOURPTR+1
+	sta FOURPTR+3
+	lda #$04
+	sta FOURPTR+2
+
+	// INPUT: fadeval=0 to 128
+	// tempval = fadeval / 128
+	+copy16 tempval, fadeval
+	+lsr16_by tempval, 7
+
+	//for k = 0 to 31
+	ldz #$00
+
+-		+fade_clr1_to_black_step DEFAULT_RED, $d100
+		+fade_clr1_to_black_step DEFAULT_GREEN, $d200
+		+fade_clr1_to_black_step DEFAULT_BLUE, $d300
+
+	//next k
+	inz
+	cpz #32
+	lbne -
+
+	// return
+	cli
+	rts
+
+
+//------------
+iter_starfield:
+//------------
+	// prepare four pointer
+	lda #$00
+	sta FOURPTR
+	sta FOURPTR+1
+	sta FOURPTR+3
+	lda #$04
+	sta FOURPTR+2
+
+	// prepare zero pointer
+	lda #$00
+	sta ZEROPTR
+	sta ZEROPTR+1
+	sta ZEROPTR+2
+	sta ZEROPTR+3
+
+	+set1ptr_from_4ptr STARX
+	ldz #$00
+
+	+set0ptr_from_4ptr STARVX
+	lda #$01	// switch it to a 1 pointer too, just for convenience
+	sta ZEROPTR+2
+	lda #$00
+	sta ZEROPTR+3
+
+	// for k = 0 to 20
+	ldy #$00
+
+		// starx(k) = mod(starx(k) - starvx(k) +80, 80)
+-		sec
+		inz
+		lda [ONEPTR],z
+		sbc [ZEROPTR],z
+		sta [ONEPTR],z
+		dez
+		lda [ONEPTR],z
+		sbc [ZEROPTR],z
+		sta [ONEPTR],z
+
+		bpl +		// check if subtraction was negative
+
+		clc		// if negative, add 80
+		adc #80
+		sta [ONEPTR],z
+		clc
+
++
+		inz
+		inz
+
+	// next k
+	iny
+	cpy #21
+	bne -
+
+	rts
+
+
+//-------------------
+scroll_canvas_right: // (a = hi_addr)
+//-------------------
+	// offs(fidx%) = offs(fidx%) + 1
+	// if fidx% = 0 then addr = $52000
+	// if fidx% = 1 then addr = $54000
+	pha
+
+	sta data_addr+1
+	lda #$00
+	sta data_addr
+
+	lda #80
+	sta tmpw
+	lda #$00
+	sta tmpw+1
+
+do_dma_scroll:
+	pla
+	cmp #$20
+	bne do_54000
+
+do_52000:
+	// poke $d702, 4 ' dma list in bank 0
+	lda #00
+	sta $d702
+
+	// poke $d701, $00 ' dma list msb
+	lda #>dma_52000
+	sta $d701
+
+	// poke $d705, $00 ' dma list lsb
+	lda #<dma_52000
+	sta $d705
+	jmp +
+
+do_54000:
+	// poke $d702, 4 ' dma list in bank 0
+	lda #00
+	sta $d702
+
+	// poke $d701, $00 ' dma list msb
+	lda #>dma_54000
+	sta $d701
+
+	// poke $d705, $00 ' dma list lsb
+	lda #<dma_54000
+	sta $d705
+
+	// prepare ZERO pointer as five pointer
++	lda #$00
+	sta ZEROPTR
+	sta ZEROPTR+1
+	sta ZEROPTR+3
+	lda #$05
+	sta ZEROPTR+2
+
+	// prepare two addresses
+	lda data_addr
+	sta dest_addr
+	clc
+	lda data_addr+1
+	adc #$10
+	sta dest_addr+1
+
+	// for yy = 0 to 49
+	ldy #$00
+-
+		// poke addr + 79 + yy*80, 32 
+		lda data_addr
+		sta ZEROPTR
+		lda data_addr+1
+		sta ZEROPTR+1
+		ldz #79
+		lda #32
+		sta [ZEROPTR],z
+
+		// poke addr+$1000 + 79 + yy*80, 0
+		lda dest_addr
+		sta ZEROPTR
+		lda dest_addr+1
+		sta ZEROPTR+1
+		ldz #79
+		lda #$00
+		sta [ZEROPTR],z
+
+		+add16 data_addr, tmpw, data_addr
+		+add16 dest_addr, tmpw, dest_addr
+
+	// next yy                
+	iny
+	cpy #50
+	lbne -
+	
+	// return
+	rts
+
+
+//---------
+page_flip:
+//---------
+	// poke $d702, 4 ' dma list in bank 4
+	lda #$00
+	sta $d702
+
+	// poke $d701, $00 ' dma list msb
+	lda #>dmalist
+	sta $d701
+
+	// poke $d705, $00 ' dma list lsb
+	lda #<dmalist
+	sta $d705
+	
+	// return
+	rts
+
+
+//---------
+page_flip_faster:
+//---------
+	// poke $d702, 4 ' dma list in bank 4
+	lda #$00
+	sta $d702
+
+	// poke $d701, $00 ' dma list msb
+	lda #>fasterdmalist
+	sta $d701
+
+	// poke $d705, $00 ' dma list lsb
+	lda #<fasterdmalist
+	sta $d705
+	
+	// return
+	rts
+
+//-----------
+init_and_plot:
+//-----------
+				pha
+				phx
+				phy
+				jsr init
+				ply
+				plx
+				pla
+
+				jsr plot
+				rts
+
+
+//---
+init:
+//---
+// populate properties and initialise
+				// 40 or 80 column screen?
+				lda #80
+				sta xmode4080
+				lda $d031
+				and #$80
+				bne +
+				lda #40
+				sta xmode4080
+
+				
++				// 25 or 50 row screen?
+				lda #50
+				sta ymode2550
+				lda $d031
+				and #$08
+				bne +
+				lda #25
+				sta ymode2550
+
+				jsr init2
+
++				rts
+
+
+//---
+plot:
+//---
+				sta xpos
+				stx ypos
+				sty colour
+
+_plot:
+				jsr init2
+
+__plot:
+				jsr check_xy_in_range
+				bcc +
+				rts
+
++				jsr find_char_positions	// sets screenx, screeny,
+										// xhalf and yhalf (if odd, set to $ff, if even, set to $00)
+
+
+				jsr which_char_at_xy 	// for given x,y, existing battenburg char is stored in 'virtual'
+										// (if one exists, otherwise, virtual = 0)
+
+				jsr update_char_at_xy	// based on xhalf,yhalf, decide which battenburg pixel to update
+
+				rts
+
+
+//---
+line:
+//---
+	//sei
+	pha
+	lda #$00
+	sta x1+1
+	sta y1+1
+	sta x2+1
+	sta y2+1
+	pla
+	
+	sta x1
+	cmp #160
+	bcc +
+	lda #$ff
+	sta x1+1
+
++	stx y1
+	txa
+	bpl +
+	lda #$ff
+	sta y1+1
+
++	sty x2
+	tya
+	cmp #160
+	bcc +
+	lda #$ff
+	sta x2+1
+
++	stz y2
+	tza
+	bpl +
+	lda #$ff
+	sta y2+1
+
++	jsr init
+
+	// borrowed from: www.baeldung.com/cs/bresenhams-line-algorithm
+	lda #$01
+	sta sx
+	lda #$00
+	sta sx+1
+	lda #$ff
+	sta sy
+	sta sy+1
+
+	// ddx = abs(x2-x1)
+	lda x2
+	sec
+	sbc x1
+	sta ddx
+
+	lda x2+1
+	sbc x1+1
+	sta ddx+1
+
+	bpl +
+
+	lda ddx
+	eor #$ff
+	clc
+	adc #$01
+	sta ddx
+
+	lda ddx+1
+	eor #$ff
+	adc #$00
+	sta ddx+1
+
+	// if x1 < x2 then sx = 1 : else sx = -1
+	lda #$ff
+	sta sx
+	sta sx+1
+	
+	// ddy = -abs(y2-y1)
++	lda y2
+	sec
+	sbc y1
+	sta ddy
+
+	lda y2+1
+	sbc y1+1
+	sta ddy+1
+
+	bmi +
+
+	lda ddy
+	eor #$ff
+	clc
+	adc #$01
+	sta ddy
+
+	lda ddy+1
+	eor #$ff
+	adc #$00
+	sta ddy+1
+
+	// if y1 < y2 then sy = 1 : else sy = -1
+	lda #$01
+	sta sy
+	lda #$00
+	sta sy+1
+	
+	// _e = ddx + ddy
++	lda ddx
+	clc
+	adc ddy
+	sta _e
+
+	lda ddx+1
+	adc ddy+1
+	sta _e+1
+	
+	// xpos = x1 : ypos = y1
+	lda x1
+	sta xpos
+	lda x1+1
+	sta xpos+1
+
+	lda y1
+	sta ypos
+	lda y1+1
+	sta ypos+1
+
+	lda #$00
+	sta virtual
+	sta xhalf
+	sta yhalf
+
+	// do while 1
+pixel_loop:
+				lda #$00
+				sta virtual
+				sta xhalf
+				sta yhalf
+				sta COLPTR + 3
+				sta ROWPTR + 3
+				lda #$05
+				sta COLPTR + 2
+				sta ROWPTR + 2
+
+		// gosub draw_pixel
+		jsr __plot
+
+		//if xpos = (x2) and ypos = y2 then exit
+		lda xpos
+		cmp x2
+		bne +
+		lda xpos+1
+		cmp x2+1
+		bne +
+
+		lda ypos
+		cmp y2
+		bne +
+		lda ypos+1
+		cmp y2+1
+		bne +
+
+		cli
+		rts
+	
+		// _e2 = 2 * _e
++ 		lda _e
+		clc
+		rol
+		sta _e2
+		lda _e+1
+		rol
+		sta _e2+1
+
+		// if _e2 >= ddy then begin
+		sec
+		lda _e2
+		sbc ddy
+		sta tmpw
+		lda _e2+1
+		sbc ddy+1
+		sta tmpw+1
+
+		bmi ++
+
+			// if xpos = x2 then exit
++			lda xpos
+			cmp x2
+			bne +
+			lda xpos+1
+			cmp x2+1
+			bne +
+			cli
+			rts
+
+			// _e = _e + ddy
++			clc
+			lda _e
+			adc ddy
+			sta _e
+			lda _e+1
+			adc ddy+1
+			sta _e+1
+
+			// xpos = xpos + sx
+			clc
+			lda xpos
+			adc sx
+			sta xpos
+			lda xpos+1
+			adc sx+1
+			sta xpos+1
+		// bend
+
+
+		// if _e2 <= ddx then begin
+++		sec
+		lda _e2
+		sbc ddx
+		sta tmpw
+		lda _e2+1
+		sbc ddx+1
+		sta tmpw+1
+
+		bmi +
+		ora tmpw
+		beq +
+
+		jmp pixel_loop
+
++			// if ypos = y2 then exit
+			lda ypos
+			cmp y2
+			bne +
+
+			lda ypos+1
+			cmp y2+1
+			bne +
+
+			cli
+			rts
+
+			// _e = _e + ddx
++			clc
+			lda _e
+			adc ddx
+			sta _e
+			lda _e+1
+			adc ddx+1
+			sta _e+1
+
+			// ypos = ypos + sy
+			clc
+			lda ypos
+			adc sy
+			sta ypos
+			lda ypos+1
+			adc sy+1
+			sta ypos+1
+		// bend
+	
+	// loop
++	jmp pixel_loop
+
+	cli
+	rts
+
+
+//-------
+set_colour:
+//-------
+	sta colour
+	rts
+
+
+//-------------
+iter_greet_text:
+//-------------
+  // ret = 0
+
+	// prepare four pointer
+	lda #$00
+	sta FOURPTR
+	sta FOURPTR+1
+	sta FOURPTR+3
+	lda #$04
+	sta FOURPTR+2
+
+igt_restart:
+  // store gt_ptr in CLRPTR
+  lda gt_ptr
+  sta CLRPTR
+  lda gt_ptr+1
+  sta CLRPTR+1
+  lda gt_ptr+2
+  sta CLRPTR+2
+  lda gt_ptr+3
+  sta CLRPTR+3
+
+  // chr = peek(gt_ptr)
+  ldz #$00
+  lda [CLRPTR],z
+  sta chr
+
+  // if chr = $00 then return
+  bne +
+  rts
+
+  // gt_ptr = gt_ptr + 1
++	clc
+	lda gt_ptr
+	adc #$01
+	sta gt_ptr
+	lda gt_ptr+1
+	adc #$00
+	sta gt_ptr+1
+
+  //if chr = $ff then begin
+  lda chr
+  cmp #$ff
+  lbne +
+    // line_x = 0
+    lda #$00
+    sta line_x
+
+    //' scroll up
+    // edma 0, $f50, $52050, $52000
+    +poke_b4_val $06, $00	// CMD lsb = COPY
+    +poke_b4_val $0b, 5	// src bank
+    +poke_b4_val $0e, 5	// dest bank
+    +set16 length, $f50
+
+    +set16 src_addr, $2050
+    +set16 dest_addr, $2000
+    jsr plain_dma
+
+    // edma 0, $f50, $53050, $53000
+
+    +set16 src_addr, $3050
+    +set16 dest_addr, $3000
+    jsr plain_dma
+
+    // edma 3, 80, 32, $52f50
+    +poke_b4_val $06, $03	// CMD lsb = FILL
+    +set16 length, 80
+
+    +set16 src_addr, 32
+    +set16 dest_addr, $2f50
+    jsr plain_dma
+
+    // edma 3, 80, 0, $53f50
+    +set16 src_addr, 0
+    +set16 dest_addr, $3f50
+    jsr plain_dma
+
+    // ret = 1
+  // bend
+
+  // if ret=1 then goto iter_greet_txt
+  jmp igt_restart
+
+ // if chr = 27 then rbw_flag=1: goto iter_greet_txt  ' [ char
++	lda chr
+	cmp #27
+	bne +
+
+	lda #$01
+	sta rbw_flag
+	jmp igt_restart
+
+  // if chr = 29 then rbw_flag=0: goto iter_greet_txt  ' ] char
++	lda chr
+	cmp #29
+	bne +
+
+	lda #$00
+	sta rbw_flag
+	jmp igt_restart
+
+//  if rbw_flag then rbw_clr = mod(rbw_clr+1, 16):myclr = rbw_clr:else myclr = 1
++	lda rbw_flag
+	beq +
+
+	clc
+	lda rbw_clr
+	adc #$01
+	and #$0f
+	sta rbw_clr
+	sta myclr
+	jmp igt_plot
+
++	lda #$01
+	sta myclr
+
+igt_plot:
+  // if chr<>32 then begin
+  	lda chr
+	cmp #32
+	beq igt_incr
+
+    // poke $52f50 + line_x, chr
+    lda #$50
+    sta CLRPTR
+    lda #$2f
+    sta CLRPTR+1
+    lda #$05
+    sta CLRPTR+2
+
+    ldz line_x
+
+    lda chr
+    sta [CLRPTR],z
+
+    // poke $53f50 + line_x, myclr + rbw_flag * 64
+    lda #$3f
+    sta CLRPTR+1
+
+    lda myclr
+
+    ldx rbw_flag
+    beq +
+
+    ora #$40
+
++   sta [CLRPTR],z
+
+  // bend
+
+igt_incr:
+  // line_x = line_x + 1
++	inc line_x
+
+	// restore
+	+poke_b4_val $06, $00	// CMD lsb = COPY
+	+poke_b4_val $0b, 5	// src bank
+
+  // return
+	rts
+
+
+// ---------------------
+// INTERNAL ASM ROUTINES
+// ---------------------
+
+transparent_dma:
+//-------------
+	// wpoke $40009, src_addr
+	+wpoke_b4 $09, src_addr
+
+	// wpoke $4000c, dest_addr
+	+wpoke_b4 $0c, dest_addr
+
+	// wpoke $40007, length
+	+wpoke_b4 $07, length
+
+	// poke  $40004, transp
+	+poke_b4 $04, transp
+
+	// poke $d702, 4 ' dma list in bank 4
+	lda #$04
+	sta $d702
+
+	// poke $d701, $00 ' dma list msb
+	lda #$00
+	sta $d701
+
+	// poke $d705, $00 ' dma list lsb
+	lda #$00
+	sta $d705
+	
+	// return
+	rts
+
+
+plain_dma:
+//--
+	// wpoke $40009, src_addr
+	+wpoke_b4 $09, src_addr
+
+	// wpoke $4000c, dest_addr
+	+wpoke_b4 $0c, dest_addr
+
+	// wpoke $40007, length
+	+wpoke_b4 $07, length
+
+	// poke $d702, 4 ' dma list in bank 4
+	lda #$04
+	sta $d702
+
+	// poke $d701, $00 ' dma list msb
+	lda #$00
+	sta $d701
+
+	// poke $d705, $00 ' dma list lsb
+	lda #$05
+	sta $d705
+	
+	// return
+	rts
+
+flip_nibble:
+// --------
+	clc
+	tax
+	and #$0f
+	asl
+	asl
+	asl
+	asl
+	sta tmp
+
+	txa
+	and #$f0
+	lsr
+	lsr
+	lsr
+	lsr
+
+	ora tmp
+	rts
+
+
+calc_faded_colour:
+//----------------
+	// flip_var = clr1 + (clr2 - clr1) * tempval
+	lda clr2+1
+	cmp clr1+1
+	bcc +		// clr1 > clr2?
+
+	+subtract16 clr2, clr1, tmpw
+	+multiply16 tmpw, tempval, tmpw
+	+add16 clr1, tmpw, tmpw
+	jmp ++
+
++	+subtract16 clr1, clr2, tmpw
+	+multiply16 tmpw, tempval, tmpw
+	+subtract16 clr1, tmpw, tmpw
+
+++
+	// gosub flip_nibble
+	lda tmpw+1
+	jsr flip_nibble
+	
+	rts
+
+
+//----
+init2:
+//----
+				lda #$00
+				sta virtual
+				sta xhalf
+				sta yhalf
+
+				// init high word of COLPTR to be $0ff8
+				lda #$00
+				sta COLPTR + 3
+				lda #$05
+				sta COLPTR + 2
+
+				// init high word of ROWPTR to be LO=SCRNPTRBNK($D062) HI=SCRNPTRMB($D063.0-3)
+				lda #$00
+				sta ROWPTR + 3
+				lda #$05
+				sta ROWPTR + 2
+
+				rts
+
+
+//---------------
+update_char_at_xy:
+//---------------
+				// if on left, bits 1 or 3
+				lda xhalf
+				bne SetRightBit  // plot must be on the right of the battenburg
+				// since bits 1 or 3 is set, we are on the left - top left or bottom left?
+				lda yhalf
+				beq SetTopLeft
+				ldx #$04 // bottom left
+				jmp Combine
+SetTopLeft:		ldx #$01 // top left	
+				jmp Combine
+
+SetRightBit:	lda yhalf
+				beq SetTopRight
+				ldx #$08
+				jmp Combine
+SetTopRight:	ldx #$02
+
+Combine:		// combine the new bit with those of any pre-existing bits 
+				txa
+				ora virtual
+				tax
+
+				// What's the character corresponding to the combined bit pattern?
+NextCharOut:	lda bitpatterns,x
+				
+Plot:			phy
+				plz
+				sta [ROWPTR],z
+				lda colour
+				sta [COLPTR],z
+
+DumpReg:		ldx ROWPTR
+				ldy ROWPTR + 1
+				ldz xhalf
+				rts
+
+//---------------
+check_xy_in_range:
+//---------------
+				// don't draw negative x
+				lda xpos
+				cmp #160
+				bcc +
+				sec
+				rts
+
+				// don't draw negative y
++				lda ypos
+				bpl +
+				sec
+				rts
+
++				lda xmode4080
+				cmp #80
+				beq ValidateX80
+
+ValidateX40:	lda xpos 
+				cmp #80
+				bcc xok
+				sec
+				rts // if out of range, don't draw
+
+				// validate values
+ValidateX80:		lda xpos
+				cmp #160
+				bcc xok
+				sec
+				rts	// if out of range, don't draw
+
+xok:			lda ymode2550
+				cmp #50
+				beq ValidateY50
+
+ValidateY25:	lda ypos
+				cmp#50
+				bcc yok
+				sec
+				rts // if out of range, don't draw
+
+ValidateY50:	lda ypos
+				cmp#100
+				bcc yok
+				sec
+				rts // if out of range, don't draw
+
+yok:			clc
+				rts
+
+
+//-----------------
+find_char_positions:
+//-----------------
+				// find character positions
+				//divide x by 2
+				clc
+				lda xpos
+				ror
+				sta screenx
+				// is it an odd number?  Then we need a right half pixel to be set
+				bcc +
+				lda #$ff
+				sta xhalf
+
+				//divide y by 2
++				clc
+				lda ypos
+				ror
+				sta screeny
+				// is it an odd number?  Then we need a bottom half pixel to be set
+				bcc +
+				lda #$ff
+				sta yhalf
+
++				rts
+
+
+
+
+//-------------------------------
+update_pointers_to_start_of_y_row:
+//-------------------------------
+				ldz #$00
+				ldy #$00
+				ldx #$00
+				lda screeny
+				stq MULTINA
+
+				lda xmode4080
+				stq MULTINB
+
+				ldq MULTOUT
+
+				clc
+				tay
+				adc ROWPTR
+				sta ROWPTR
+
+				txa
+				adc ROWPTR+1
+				sta ROWPTR+1
+
+				clc
+				tya
+				adc COLPTR
+				sta COLPTR
+
+				txa
+				adc COLPTR+1
+				sta COLPTR+1
+
++				rts
+
+
+//--------------------------------
+check_for_battenburg_char_at_x_col:
+//--------------------------------
+				// z is the x coordinate to print to
+				ldy screenx
+				ldz screenx
+				lda [COLPTR],z
+				cmp colour
+				beq CheckChar
+
+				ldx #$00
+				stx virtual
+
+				rts
+
+				// Is there already a plot character in the box?
+CheckChar:		// Is it in the list?  If so, which bit pattern?
+				ldx #$00
+NextChar:		lda bitpatterns,x
+				cmp [ROWPTR],z
+				beq CheckDone
+				inx
+				cpx #$10
+				bne NextChar
+
+CheckDone:		// if we reach the end of the list there isn't a battenburg so just go ahead and plot
+				cpx #$10
+				beq +
+
+				// there is already a plot point in the character square, store its nybble representation
+				stx virtual
+
++				rts
+
+
+//--------------
+which_char_at_xy:
+//--------------
+				lda #$00
+				sta virtual
+
+				// jsr init_screen_and_colour_pointers
+				sta ROWPTR
+				sta ROWPTR + 1
+				sta COLPTR
+				ldy #$10
+				sty COLPTR + 1
+			
+				jsr update_pointers_to_start_of_y_row
+
+				jsr check_for_battenburg_char_at_x_col	// if exists, screen-code char stored in 'virtual'
+
+				rts
+
+
+
+
+// VARIABLES
+// ---------
+fadeval:	!word $00
+tempval:	!word $00
+clr1:		!word $00
+clr2:		!word $00
+tmp:		!byte $00
+tmpw:		!word $00
+tempr:		!byte $00
+tempg:		!byte $00
+tempb:		!byte $00
+data_addr:	!word $00
+cdata_addr:	!word $00
+scraddr:	!word $00
+clraddr:	!word $00
+inc_frm:	!word $00
+frmy:		!word $00
+frmy1:		!word $00
+frmw:		!byte $00
+yy:		!word $00
+src_addr:	!word $00
+dest_addr:	!word $00
+length:		!word $00
+transp:		!byte $00
+starx:		!word $00
+starvx:		!word $00
+
+// megaplot vars
+xmode4080:	!byte 80
+ymode2550:	!byte 50
+xpos:		!word $00
+ypos:		!word $00
+colour:		!byte $00
+x1:		!word $00
+y1:		!word $00
+x2:		!word $00
+y2:		!word $00
+ddx:		!word $00
+ddy:		!word $00
+sx:		!word $00
+sy:		!word $00
+_e:		!word $00
+_e2:		!word $00
+virtual:	!byte $00
+xhalf:		!byte $00 // ff if the point is on the right of the character square
+yhalf:		!byte $00 // ff if the point is on the bottom of the character square
+bitpatterns:	!byte $20,$7e,$7c,$e2,$7b,$61,$ff,$ec,$6c,$7f,$e1,$fb,$62,$fc,$fe,$a0
+// descriptions:      spc, TL, TR, hT, BL, vL,  /,iBR, BR,  \, vR,iBL, hB,iTR,iTL,all
+screenx:	!byte $00
+screeny:	!byte $00
+chr:		!byte $00
+gt_ptr:		!word $7000, $0004	// defaults to $047000
+line_x:		!byte $00
+rbw_flag:	!byte $00
+rbw_clr:	!byte $00
+myclr:		!byte $00
+
+dmalist:
+// copy screen buffer 1
++edma_transp $20, $00+$04, 4000, $4000, $05, $0000, $05, $00
++edma_transp $00, $00+$04, 4000, $5000, $05, $1000, $05, $00
+
+fasterdmalist:
+// copy screen buffer 0
++edma_transp $20, $00+$04, 4000, $2000, $05, $0000, $05, $00
++edma_transp $00, $00+$04, 4000, $3000, $05, $1000, $05, $00
+
+fastestdmalist:
+// perform flip to screen
++edma $00+$04, 4000, $0000, $05, $0800, $04, $00
++edma $00+$04, 4000, $1000, $05, $0000, $08, $ff
+
+// clear off-screen
++edma $03+$04, 4000, $0020, $00, $0000, $05, $00
++edma $03,     4000, $0001, $00, $1000, $05, $00
+
+dma_52000:
++edma $00+$04, 79, $2001+0*80, $05, $2000+0*80, $05, $00
++edma $00+$04, 79, $2001+1*80, $05, $2000+1*80, $05, $00
++edma $00+$04, 79, $2001+2*80, $05, $2000+2*80, $05, $00
++edma $00+$04, 79, $2001+3*80, $05, $2000+3*80, $05, $00
++edma $00+$04, 79, $2001+4*80, $05, $2000+4*80, $05, $00
++edma $00+$04, 79, $2001+5*80, $05, $2000+5*80, $05, $00
++edma $00+$04, 79, $2001+6*80, $05, $2000+6*80, $05, $00
++edma $00+$04, 79, $2001+7*80, $05, $2000+7*80, $05, $00
++edma $00+$04, 79, $2001+8*80, $05, $2000+8*80, $05, $00
++edma $00+$04, 79, $2001+9*80, $05, $2000+9*80, $05, $00
+
++edma $00+$04, 79, $2001+10*80, $05, $2000+10*80, $05, $00
++edma $00+$04, 79, $2001+11*80, $05, $2000+11*80, $05, $00
++edma $00+$04, 79, $2001+12*80, $05, $2000+12*80, $05, $00
++edma $00+$04, 79, $2001+13*80, $05, $2000+13*80, $05, $00
++edma $00+$04, 79, $2001+14*80, $05, $2000+14*80, $05, $00
++edma $00+$04, 79, $2001+15*80, $05, $2000+15*80, $05, $00
++edma $00+$04, 79, $2001+16*80, $05, $2000+16*80, $05, $00
++edma $00+$04, 79, $2001+17*80, $05, $2000+17*80, $05, $00
++edma $00+$04, 79, $2001+18*80, $05, $2000+18*80, $05, $00
++edma $00+$04, 79, $2001+19*80, $05, $2000+19*80, $05, $00
+
++edma $00+$04, 79, $2001+20*80, $05, $2000+20*80, $05, $00
++edma $00+$04, 79, $2001+21*80, $05, $2000+21*80, $05, $00
++edma $00+$04, 79, $2001+22*80, $05, $2000+22*80, $05, $00
++edma $00+$04, 79, $2001+23*80, $05, $2000+23*80, $05, $00
++edma $00+$04, 79, $2001+24*80, $05, $2000+24*80, $05, $00
++edma $00+$04, 79, $2001+25*80, $05, $2000+25*80, $05, $00
++edma $00+$04, 79, $2001+26*80, $05, $2000+26*80, $05, $00
++edma $00+$04, 79, $2001+27*80, $05, $2000+27*80, $05, $00
++edma $00+$04, 79, $2001+28*80, $05, $2000+28*80, $05, $00
++edma $00+$04, 79, $2001+29*80, $05, $2000+29*80, $05, $00
+
++edma $00+$04, 79, $2001+30*80, $05, $2000+30*80, $05, $00
++edma $00+$04, 79, $2001+31*80, $05, $2000+31*80, $05, $00
++edma $00+$04, 79, $2001+32*80, $05, $2000+32*80, $05, $00
++edma $00+$04, 79, $2001+33*80, $05, $2000+33*80, $05, $00
++edma $00+$04, 79, $2001+34*80, $05, $2000+34*80, $05, $00
++edma $00+$04, 79, $2001+35*80, $05, $2000+35*80, $05, $00
++edma $00+$04, 79, $2001+36*80, $05, $2000+36*80, $05, $00
++edma $00+$04, 79, $2001+37*80, $05, $2000+37*80, $05, $00
++edma $00+$04, 79, $2001+38*80, $05, $2000+38*80, $05, $00
++edma $00+$04, 79, $2001+39*80, $05, $2000+39*80, $05, $00
+
++edma $00+$04, 79, $2001+40*80, $05, $2000+40*80, $05, $00
++edma $00+$04, 79, $2001+41*80, $05, $2000+41*80, $05, $00
++edma $00+$04, 79, $2001+42*80, $05, $2000+42*80, $05, $00
++edma $00+$04, 79, $2001+43*80, $05, $2000+43*80, $05, $00
++edma $00+$04, 79, $2001+44*80, $05, $2000+44*80, $05, $00
++edma $00+$04, 79, $2001+45*80, $05, $2000+45*80, $05, $00
++edma $00+$04, 79, $2001+46*80, $05, $2000+46*80, $05, $00
++edma $00+$04, 79, $2001+47*80, $05, $2000+47*80, $05, $00
++edma $00+$04, 79, $2001+48*80, $05, $2000+48*80, $05, $00
++edma $00+$04, 79, $2001+49*80, $05, $2000+49*80, $05, $00
+
+dma_53000:
++edma $00+$04, 79, $3001+0*80, $05, $3000+0*80, $05, $00
++edma $00+$04, 79, $3001+1*80, $05, $3000+1*80, $05, $00
++edma $00+$04, 79, $3001+2*80, $05, $3000+2*80, $05, $00
++edma $00+$04, 79, $3001+3*80, $05, $3000+3*80, $05, $00
++edma $00+$04, 79, $3001+4*80, $05, $3000+4*80, $05, $00
++edma $00+$04, 79, $3001+5*80, $05, $3000+5*80, $05, $00
++edma $00+$04, 79, $3001+6*80, $05, $3000+6*80, $05, $00
++edma $00+$04, 79, $3001+7*80, $05, $3000+7*80, $05, $00
++edma $00+$04, 79, $3001+8*80, $05, $3000+8*80, $05, $00
++edma $00+$04, 79, $3001+9*80, $05, $3000+9*80, $05, $00
+
++edma $00+$04, 79, $3001+10*80, $05, $3000+10*80, $05, $00
++edma $00+$04, 79, $3001+11*80, $05, $3000+11*80, $05, $00
++edma $00+$04, 79, $3001+12*80, $05, $3000+12*80, $05, $00
++edma $00+$04, 79, $3001+13*80, $05, $3000+13*80, $05, $00
++edma $00+$04, 79, $3001+14*80, $05, $3000+14*80, $05, $00
++edma $00+$04, 79, $3001+15*80, $05, $3000+15*80, $05, $00
++edma $00+$04, 79, $3001+16*80, $05, $3000+16*80, $05, $00
++edma $00+$04, 79, $3001+17*80, $05, $3000+17*80, $05, $00
++edma $00+$04, 79, $3001+18*80, $05, $3000+18*80, $05, $00
++edma $00+$04, 79, $3001+19*80, $05, $3000+19*80, $05, $00
+
++edma $00+$04, 79, $3001+20*80, $05, $3000+20*80, $05, $00
++edma $00+$04, 79, $3001+21*80, $05, $3000+21*80, $05, $00
++edma $00+$04, 79, $3001+22*80, $05, $3000+22*80, $05, $00
++edma $00+$04, 79, $3001+23*80, $05, $3000+23*80, $05, $00
++edma $00+$04, 79, $3001+24*80, $05, $3000+24*80, $05, $00
++edma $00+$04, 79, $3001+25*80, $05, $3000+25*80, $05, $00
++edma $00+$04, 79, $3001+26*80, $05, $3000+26*80, $05, $00
++edma $00+$04, 79, $3001+27*80, $05, $3000+27*80, $05, $00
++edma $00+$04, 79, $3001+28*80, $05, $3000+28*80, $05, $00
++edma $00+$04, 79, $3001+29*80, $05, $3000+29*80, $05, $00
+
++edma $00+$04, 79, $3001+30*80, $05, $3000+30*80, $05, $00
++edma $00+$04, 79, $3001+31*80, $05, $3000+31*80, $05, $00
++edma $00+$04, 79, $3001+32*80, $05, $3000+32*80, $05, $00
++edma $00+$04, 79, $3001+33*80, $05, $3000+33*80, $05, $00
++edma $00+$04, 79, $3001+34*80, $05, $3000+34*80, $05, $00
++edma $00+$04, 79, $3001+35*80, $05, $3000+35*80, $05, $00
++edma $00+$04, 79, $3001+36*80, $05, $3000+36*80, $05, $00
++edma $00+$04, 79, $3001+37*80, $05, $3000+37*80, $05, $00
++edma $00+$04, 79, $3001+38*80, $05, $3000+38*80, $05, $00
++edma $00+$04, 79, $3001+39*80, $05, $3000+39*80, $05, $00
+
++edma $00+$04, 79, $3001+40*80, $05, $3000+40*80, $05, $00
++edma $00+$04, 79, $3001+41*80, $05, $3000+41*80, $05, $00
++edma $00+$04, 79, $3001+42*80, $05, $3000+42*80, $05, $00
++edma $00+$04, 79, $3001+43*80, $05, $3000+43*80, $05, $00
++edma $00+$04, 79, $3001+44*80, $05, $3000+44*80, $05, $00
++edma $00+$04, 79, $3001+45*80, $05, $3000+45*80, $05, $00
++edma $00+$04, 79, $3001+46*80, $05, $3000+46*80, $05, $00
++edma $00+$04, 79, $3001+47*80, $05, $3000+47*80, $05, $00
++edma $00+$04, 79, $3001+48*80, $05, $3000+48*80, $05, $00
++edma $00    , 79, $3001+49*80, $05, $3000+49*80, $05, $00
+
+dma_54000:
++edma $00+$04, 79, $4001+0*80, $05, $4000+0*80, $05, $00
++edma $00+$04, 79, $4001+1*80, $05, $4000+1*80, $05, $00
++edma $00+$04, 79, $4001+2*80, $05, $4000+2*80, $05, $00
++edma $00+$04, 79, $4001+3*80, $05, $4000+3*80, $05, $00
++edma $00+$04, 79, $4001+4*80, $05, $4000+4*80, $05, $00
++edma $00+$04, 79, $4001+5*80, $05, $4000+5*80, $05, $00
++edma $00+$04, 79, $4001+6*80, $05, $4000+6*80, $05, $00
++edma $00+$04, 79, $4001+7*80, $05, $4000+7*80, $05, $00
++edma $00+$04, 79, $4001+8*80, $05, $4000+8*80, $05, $00
++edma $00+$04, 79, $4001+9*80, $05, $4000+9*80, $05, $00
+
++edma $00+$04, 79, $4001+10*80, $05, $4000+10*80, $05, $00
++edma $00+$04, 79, $4001+11*80, $05, $4000+11*80, $05, $00
++edma $00+$04, 79, $4001+12*80, $05, $4000+12*80, $05, $00
++edma $00+$04, 79, $4001+13*80, $05, $4000+13*80, $05, $00
++edma $00+$04, 79, $4001+14*80, $05, $4000+14*80, $05, $00
++edma $00+$04, 79, $4001+15*80, $05, $4000+15*80, $05, $00
++edma $00+$04, 79, $4001+16*80, $05, $4000+16*80, $05, $00
++edma $00+$04, 79, $4001+17*80, $05, $4000+17*80, $05, $00
++edma $00+$04, 79, $4001+18*80, $05, $4000+18*80, $05, $00
++edma $00+$04, 79, $4001+19*80, $05, $4000+19*80, $05, $00
+
++edma $00+$04, 79, $4001+20*80, $05, $4000+20*80, $05, $00
++edma $00+$04, 79, $4001+21*80, $05, $4000+21*80, $05, $00
++edma $00+$04, 79, $4001+22*80, $05, $4000+22*80, $05, $00
++edma $00+$04, 79, $4001+23*80, $05, $4000+23*80, $05, $00
++edma $00+$04, 79, $4001+24*80, $05, $4000+24*80, $05, $00
++edma $00+$04, 79, $4001+25*80, $05, $4000+25*80, $05, $00
++edma $00+$04, 79, $4001+26*80, $05, $4000+26*80, $05, $00
++edma $00+$04, 79, $4001+27*80, $05, $4000+27*80, $05, $00
++edma $00+$04, 79, $4001+28*80, $05, $4000+28*80, $05, $00
++edma $00+$04, 79, $4001+29*80, $05, $4000+29*80, $05, $00
+
++edma $00+$04, 79, $4001+30*80, $05, $4000+30*80, $05, $00
++edma $00+$04, 79, $4001+31*80, $05, $4000+31*80, $05, $00
++edma $00+$04, 79, $4001+32*80, $05, $4000+32*80, $05, $00
++edma $00+$04, 79, $4001+33*80, $05, $4000+33*80, $05, $00
++edma $00+$04, 79, $4001+34*80, $05, $4000+34*80, $05, $00
++edma $00+$04, 79, $4001+35*80, $05, $4000+35*80, $05, $00
++edma $00+$04, 79, $4001+36*80, $05, $4000+36*80, $05, $00
++edma $00+$04, 79, $4001+37*80, $05, $4000+37*80, $05, $00
++edma $00+$04, 79, $4001+38*80, $05, $4000+38*80, $05, $00
++edma $00+$04, 79, $4001+39*80, $05, $4000+39*80, $05, $00
+
++edma $00+$04, 79, $4001+40*80, $05, $4000+40*80, $05, $00
++edma $00+$04, 79, $4001+41*80, $05, $4000+41*80, $05, $00
++edma $00+$04, 79, $4001+42*80, $05, $4000+42*80, $05, $00
++edma $00+$04, 79, $4001+43*80, $05, $4000+43*80, $05, $00
++edma $00+$04, 79, $4001+44*80, $05, $4000+44*80, $05, $00
++edma $00+$04, 79, $4001+45*80, $05, $4000+45*80, $05, $00
++edma $00+$04, 79, $4001+46*80, $05, $4000+46*80, $05, $00
++edma $00+$04, 79, $4001+47*80, $05, $4000+47*80, $05, $00
++edma $00+$04, 79, $4001+48*80, $05, $4000+48*80, $05, $00
++edma $00+$04, 79, $4001+49*80, $05, $4000+49*80, $05, $00
+
+dma_55000:
++edma $00+$04, 79, $5001+0*80, $05, $5000+0*80, $05, $00
++edma $00+$04, 79, $5001+1*80, $05, $5000+1*80, $05, $00
++edma $00+$04, 79, $5001+2*80, $05, $5000+2*80, $05, $00
++edma $00+$04, 79, $5001+3*80, $05, $5000+3*80, $05, $00
++edma $00+$04, 79, $5001+4*80, $05, $5000+4*80, $05, $00
++edma $00+$04, 79, $5001+5*80, $05, $5000+5*80, $05, $00
++edma $00+$04, 79, $5001+6*80, $05, $5000+6*80, $05, $00
++edma $00+$04, 79, $5001+7*80, $05, $5000+7*80, $05, $00
++edma $00+$04, 79, $5001+8*80, $05, $5000+8*80, $05, $00
++edma $00+$04, 79, $5001+9*80, $05, $5000+9*80, $05, $00
+
++edma $00+$04, 79, $5001+10*80, $05, $5000+10*80, $05, $00
++edma $00+$04, 79, $5001+11*80, $05, $5000+11*80, $05, $00
++edma $00+$04, 79, $5001+12*80, $05, $5000+12*80, $05, $00
++edma $00+$04, 79, $5001+13*80, $05, $5000+13*80, $05, $00
++edma $00+$04, 79, $5001+14*80, $05, $5000+14*80, $05, $00
++edma $00+$04, 79, $5001+15*80, $05, $5000+15*80, $05, $00
++edma $00+$04, 79, $5001+16*80, $05, $5000+16*80, $05, $00
++edma $00+$04, 79, $5001+17*80, $05, $5000+17*80, $05, $00
++edma $00+$04, 79, $5001+18*80, $05, $5000+18*80, $05, $00
++edma $00+$04, 79, $5001+19*80, $05, $5000+19*80, $05, $00
+
++edma $00+$04, 79, $5001+20*80, $05, $5000+20*80, $05, $00
++edma $00+$04, 79, $5001+21*80, $05, $5000+21*80, $05, $00
++edma $00+$04, 79, $5001+22*80, $05, $5000+22*80, $05, $00
++edma $00+$04, 79, $5001+23*80, $05, $5000+23*80, $05, $00
++edma $00+$04, 79, $5001+24*80, $05, $5000+24*80, $05, $00
++edma $00+$04, 79, $5001+25*80, $05, $5000+25*80, $05, $00
++edma $00+$04, 79, $5001+26*80, $05, $5000+26*80, $05, $00
++edma $00+$04, 79, $5001+27*80, $05, $5000+27*80, $05, $00
++edma $00+$04, 79, $5001+28*80, $05, $5000+28*80, $05, $00
++edma $00+$04, 79, $5001+29*80, $05, $5000+29*80, $05, $00
+
++edma $00+$04, 79, $5001+30*80, $05, $5000+30*80, $05, $00
++edma $00+$04, 79, $5001+31*80, $05, $5000+31*80, $05, $00
++edma $00+$04, 79, $5001+32*80, $05, $5000+32*80, $05, $00
++edma $00+$04, 79, $5001+33*80, $05, $5000+33*80, $05, $00
++edma $00+$04, 79, $5001+34*80, $05, $5000+34*80, $05, $00
++edma $00+$04, 79, $5001+35*80, $05, $5000+35*80, $05, $00
++edma $00+$04, 79, $5001+36*80, $05, $5000+36*80, $05, $00
++edma $00+$04, 79, $5001+37*80, $05, $5000+37*80, $05, $00
++edma $00+$04, 79, $5001+38*80, $05, $5000+38*80, $05, $00
++edma $00+$04, 79, $5001+39*80, $05, $5000+39*80, $05, $00
+
++edma $00+$04, 79, $5001+40*80, $05, $5000+40*80, $05, $00
++edma $00+$04, 79, $5001+41*80, $05, $5000+41*80, $05, $00
++edma $00+$04, 79, $5001+42*80, $05, $5000+42*80, $05, $00
++edma $00+$04, 79, $5001+43*80, $05, $5000+43*80, $05, $00
++edma $00+$04, 79, $5001+44*80, $05, $5000+44*80, $05, $00
++edma $00+$04, 79, $5001+45*80, $05, $5000+45*80, $05, $00
++edma $00+$04, 79, $5001+46*80, $05, $5000+46*80, $05, $00
++edma $00+$04, 79, $5001+47*80, $05, $5000+47*80, $05, $00
++edma $00+$04, 79, $5001+48*80, $05, $5000+48*80, $05, $00
++edma $00    , 79, $5001+49*80, $05, $5000+49*80, $05, $00

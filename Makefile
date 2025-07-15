@@ -13,3 +13,5 @@ tod81:
 xemu:
 	/c/projs/xemu/build/bin/xmega65.native -rom /c/projs/mega65-rom/newrom.bin -hdosvirt -uartmon :4510 -8 /C/Users/phuon/AppData/Roaming/xemu-lgb/mega65/hdos/112.D81 &> /dev/null &
 
+asmhelper.prg: asmhelper.a
+	acme --cpu m65 -v4 -l asmhelper.sym -r asmhelper.rep asmhelper.a
