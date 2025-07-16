@@ -315,6 +315,7 @@ objx: !word $00
 objy: !word $00
 chr_width: !byte $00
 chr_height: !byte $00
+idx: !word $00  // aka. char_idx
 
 * = $1610
   jmp draw_object     // 1600
@@ -470,11 +471,6 @@ skip_clear_old_position:
 //
 //  ' draw chars on desired yrows, and at right objx position
 //  idx = char_idx(fidx)
-    // hard-code to $1008 for now
-    lda #$08
-    sta idx
-    lda #$10
-    sta idx+1
 
 //  tmpx = chr_width(fidx) - 1
     ldx chr_width
@@ -845,7 +841,6 @@ maxyy: !byte $00
 inputw1: !word $00
 inputw2: !word $00
 outputw: !word $00
-idx: !word $00
 tmpx: !byte $00
 tmpy: !byte $00
 tempval: !word $00

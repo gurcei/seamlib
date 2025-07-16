@@ -1,3 +1,7 @@
+Moana's todo list
+=================
+- draw main hero character (on paper is ok)
+
 seam-draw tool
 ==============
 DONE- select group of 16 colours via < and >
