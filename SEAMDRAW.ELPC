@@ -17,6 +17,8 @@
 #declare bb_tlx(100,10), bb_tly(100,10), bb_brx(100,10), bb_bry(100,10)
 #declare bb_cnt(100)
 
+#declare numeric_flag, ret, tmp_chr_width, tmp_chr_height
+#declare old_chr_width, old_chr_height
 
 '-------
 .defines
@@ -37,6 +39,7 @@
 #define KEY_REV_ON = "{x12}"
 #define KEY_REV_OFF = "{x92}"
 #define KEY_RETURN = chr$(13)
+#define KEY_MEGA_A = "°"
 #define KEY_MEGA_Q = "«"
 #define KEY_MEGA_C = "¼"
 #define KEY_MEGA_V = "¾"
@@ -58,13 +61,7 @@ trap runstop_trapper
 '----
   gosub init
 
-  gosub clrscreen
-
-  gosub draw_palette_slice
-  gosub draw_frame
-  gosub draw_frame_contents
-  ' gosub clear_frame_chars
-  gosub draw_frame_chars
+  gosub redraw_screen
 
   gosub get_input
 
@@ -139,10 +136,37 @@ trap runstop_trapper
     if a$ = KEY_F1 then gosub load_data
     if a$ = KEY_F3 then gosub save_data
 
+    if a$ = "," and fidx > 0 then begin
+      fidx = fidx - 1
+      gosub redraw_screen
+    bend
+
+    if a$ = "." and fidx < frame_count - 1 then begin
+      fidx = fidx + 1
+      gosub redraw_screen
+    bend
+
+    if a$ = KEY_MEGA_A then gosub prompt_add_frame
+
     if a$ = KEY_CLR then gosub prompt_clear
     cursor_clr = mod(cursor_clr + 1, 16)
 
   loop
+  return
+
+
+'-------------
+.redraw_screen
+'-------------
+  if old_chr_width <> chr_width(fidx) or old_chr_height <> chr_height(fidx) then begin
+    gosub clrscreen
+    gosub draw_palette_slice
+    gosub draw_frame
+    old_chr_width = chr_width(fidx)
+    old_chr_height = chr_height(fidx)
+  bend
+  gosub draw_frame_contents
+  gosub draw_frame_chars
   return
 
 
@@ -162,6 +186,51 @@ trap runstop_trapper
   tclr = 0 : tx = 30 : ty = 3 : a$ = "                            "
   gosub draw_text
 
+  return
+
+
+'----------------
+.prompt_add_frame
+'----------------
+  tclr = 0 : tx = 30 : ty = 3 : a$ = "add frame:"
+  gosub draw_text
+
+  ty = 4 : a$ = "  enter char-width: "
+  gosub draw_text
+
+  tx = 50 : numeric_flag = 1 : gosub seam_input
+  if ret = 0 then goto afbailout
+
+  tmp_chr_width = val(ln$)
+
+  ty = 5 : tx = 30 : a$ = "  enter char-height: "
+  gosub draw_text
+
+  tx = 51 : numeric_flag = 1 : gosub seam_input
+  if ret = 0 then goto afbailout
+
+  tmp_chr_height = val(ln$)
+
+  ' we got both params from user, now make it
+  fidx = frame_count
+  frame_count = frame_count + 1
+  chr_width(fidx) = tmp_chr_width
+  chr_height(fidx) = tmp_chr_height
+  char_idx(fidx) = char_idx(fidx - 1) + chr_width(fidx-1) * chr_height(fidx-1)
+
+  gosub clear_frame_chars
+
+  gosub redraw_screen
+
+.afbailout
+  ' cleanup prompts on screen
+  tx = 30 : ty = 3 : a$ = "                         "
+  gosub draw_text
+  ty = 4
+  gosub draw_text
+  ty = 5
+  gosub draw_text
+  
   return
 
 
@@ -293,7 +362,7 @@ trap runstop_trapper
     gosub draw_text
 
     get key a$
-    if (a$ >= "a" and a$ <= "z") or (a$ >= "0" and a$ <= "9") or a$="." then begin
+    if (a$ >= "a" and a$ <= "z" and not numeric_flag) or (a$ >= "0" and a$ <= "9") or a$="." then begin
       ln$ = ln$ + a$
     bend
 
@@ -301,9 +370,15 @@ trap runstop_trapper
       if len(ln$) > 0 then ln$ = left$(ln$, len(ln$) - 1)
     bend
 
-    if a$ = KEY_RETURN then exit
+    if a$ = KEY_ESCAPE then ret = 0 : exit
+    if a$ = KEY_RETURN then ret = 1 : exit
   loop
 
+  ' remove cursor at end
+  a$ = ln$ + " "
+  gosub draw_text
+
+  numeric_flag = 0
   return
 
 
@@ -333,6 +408,9 @@ trap runstop_trapper
 '-------------------
 .draw_frame_contents
 '-------------------
+  tclr = 0 : tx = 0 : ty = 1 : a$ = "frame#" + mid$(str$(fidx), 2)
+  gosub draw_text
+
   for xx = 0 to chr_width(fidx) - 1
     for yy = 0 to chr_height(fidx) - 1
       tx = xx * 8
@@ -415,10 +493,14 @@ trap runstop_trapper
 '----------------
 .draw_frame_chars
 '----------------
+  tclr = 0 : tx = 60 : ty = 9
+  a$ = "char-idx: $" + right$(hex$(char_idx(fidx)),4)
+  gosub draw_text
+
   k = char_idx(fidx)
   for x = 0 to chr_width(fidx) - 1
     for y = 0 to chr_height(fidx) - 1
-      wpoke $40800 + (y + 10) * WIDTH + (x + 30) * 2, k
+      wpoke $40800 + (y + 10) * WIDTH + (x + 60) * 2, k
       k = k + 1
     next y
   next x
@@ -478,7 +560,7 @@ trap runstop_trapper
   fidx = 0
   chr_width(0) = 3
   chr_height(0) = 3
-  char_idx(0) = $1008
+  char_idx(0) = $1400
   frame_count = 1
   anim_count = 0
 

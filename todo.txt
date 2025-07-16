@@ -7,6 +7,13 @@ DONE- draw in 3x3 char groups as soft-sprites/pixies
 - Use , and . to select between sprite frames
 - select 'add' new frame
 
+- line tool
+- box tool
+- pencil tool
+- fill tool
+- some mouse support
+
+
 seam-sprite library
 ===================
 - for inputs:
