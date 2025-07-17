@@ -40,6 +40,27 @@ WIDTH = 200
 
 // MACROS
 // ======
+!macro prepvar16 .array, .var {
+  +copy16 ONEPTR, .array
+  lda [ONEPTR],z
+  tax  // store high byte
+  inw ONEPTR
+  lda [ONEPTR],z
+  tay  // store low byte
+
+  sty .var
+  stx .var+1
+}
+
+!macro prepvar8 .array, .var {
+  +copy16 ONEPTR, .array
+  inw ONEPTR
+  lda [ONEPTR],z
+  tay  // store low byte
+
+  sty .var
+}
+
 !macro copy16 .dest, .src {
 	lda .src
 	sta .dest
@@ -311,16 +332,73 @@ WIDTH = 200
 // ROUTINES
 // ========
 * = $1600
-objx: !word $00
-objy: !word $00
-chr_width: !byte $00
-chr_height: !byte $00
-idx: !word $00  // aka. char_idx
-stage_x_offs: !word $00
+array_objx: !word $00
+array_objy: !word $00
+array_chr_width: !word $00
+array_chr_height: !word $00
+array_char_idx: !word $00  // aka. char_idx
+array_stage_x_offs: !word $00
+frame_count: !byte $00
 
 * = $1610
-  jmp draw_object     // 1600
+  jmp draw_objects     // 1600
 
+
+//-----------
+draw_objects:
+//-----------
+//   - word array_objx@1600
+//   - word array_objy@1602
+//   - byte array_chr_width@1604
+//   - byte array_chr_height@1606
+//   - word array_char_idx@1608
+//   - word array_stage_x_offs@160a
+//   - byte frame_count@160c
+
+//  old_fidx = fidx
+    // skip this, not needed
+
+//  for fidx = 0 to frame_count% - 1
+    lda #$00
+    sta fidx
+-:
+//    gosub draw_object
+    jsr prepare_vars
+    jsr draw_object
+//  next fidx
+    inc fidx
+    lda fidx
+    cmp frame_count
+    bne -
+
+//  fidx = old_fidx
+//  return
+  rts
+
+
+//----------
+prepare_vars:
+//----------
+  // prepare one pointer
+  lda #$00
+  sta ONEPTR+3
+  lda #$01
+  sta ONEPTR+2
+
+  // let z hold the byte-offset to the array we need
+  lda fidx
+  clc
+  rol
+  taz
+
+  +prepvar16 array_objx, objx
+  +prepvar16 array_objy, objy
+  +prepvar8  array_chr_width, chr_width
+  +prepvar8  array_chr_height, chr_height
+  +prepvar16 array_char_idx, char_idx
+  +prepvar16 array_stage_x_offs, stage_x_offs
+
+  rts
 
 //---------
 draw_object:
@@ -331,7 +409,8 @@ draw_object:
 //   - byte chr_width@1604
 //   - byte chr_height@1605
 //   - word char_idx@1606
-//   - byte stage_offs_x@1608
+//   - word stage_x_offs@1608
+//   - byte frame_count@160a
 
 //  yy = int(objy / 8)
     lda #$02
@@ -464,7 +543,7 @@ skip_clear_old_position:
 //  border 2
 //
 //  ' draw chars on desired yrows, and at right objx position
-//  idx = char_idx(fidx)
+//  char_idx = char_idx(fidx)
 
 //  tmpx = chr_width(fidx) - 1
     ldx chr_width
@@ -533,37 +612,37 @@ lpy:
         lda #$00
         sta FOURPTR+3
 
-//      wpoke k, idx
+//      wpoke k, char_idx
         ldz #$00
-        lda idx
+        lda char_idx
         sta [FOURPTR],z
         inz
-        lda idx+1
+        lda char_idx+1
         sta [FOURPTR],z
 
 //      ' copy last y-line an extra line below (to help with y scrolling)
 //      if y = tmpy then begin
         cpy tmpy
         bne skip_copy_last_line_twice
-//        wpoke k + WIDTH, idx
+//        wpoke k + WIDTH, char_idx
           ldz #WIDTH
-          lda idx
+          lda char_idx
           sta [FOURPTR],z
           inz
-          lda idx+1
+          lda char_idx+1
           sta [FOURPTR],z
 
 //      bend
 skip_copy_last_line_twice:
 //
-//      idx = idx + 1
+//      char_idx = char_idx + 1
         clc
-        lda idx
+        lda char_idx
         adc #$01
-        sta idx
-        lda idx+1
+        sta char_idx
+        lda char_idx+1
         adc #$00
-        sta idx+1
+        sta char_idx+1
 
 //    next y   //    for y = 0 to tmpy
       iny
@@ -846,4 +925,11 @@ outputw: !word $00
 tmpx: !byte $00
 tmpy: !byte $00
 tempval: !word $00
+fidx: !byte $00
 
+objx: !word $00
+objy: !word $00
+chr_width: !byte $00
+chr_height: !byte $00
+char_idx: !word $00  // aka. char_idx
+stage_x_offs: !word $00

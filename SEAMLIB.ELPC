@@ -4,20 +4,20 @@
 '--------
 .declares
 '--------
-#declare fidx, frame_count, anim_count
+#declare fidx, frame_count%, anim_count
 #declare bkp_d054&, bkp_d058&, bkp_d059&, bkp_d05e&
 #declare my_err$, k, idx, x, y, value
 
-#declare default_slice(100), char_type(100), char_idx(100)
-#declare chr_width(100), chr_height(100)
+#declare default_slice(100), char_type(100), char_idx%(100)
+#declare chr_width%(100), chr_height%(100)
 #declare bb_tlx(100,10), bb_tly(100,10), bb_brx(100,10), bb_bry(100,10)
-#declare bb_cnt(100), ox(100), oy(100)
+#declare bb_cnt(100), ox%(100), oy%(100)
+#declare stage_x_offs%(100), old_fidx
 
 #declare objx, objy, oldyy, minyy, maxyy, yybot 
 #declare a$, yy, offsy, tmp, tmpx, tmpy
 #declare tclr, tx, ty, rev_flag, chr
 #declare ln$, char_count, xx, kk
-#declare stage_x_offs(100), old_fidx
 
 
 '-------
@@ -51,7 +51,7 @@ trap runstop_trapper
 
   gosub clrscreen
 
-  for fidx = 0 to frame_count - 1
+  for fidx = 0 to frame_count% - 1
     gosub stage_object
   next fidx
 
@@ -73,18 +73,22 @@ trap runstop_trapper
   bank 128
   key off
 
-  for k = 0 to frame_count - 1
-    ox(k) = k * 6 * 8
-    oy(k) = 10 * 8
+  ' prepare vars for assembly
+  wpoke $1600, pointer(ox%(0))
+  wpoke $1602, pointer(oy%(0))
+  wpoke $1604, pointer(chr_width%(0))
+  wpoke $1606, pointer(chr_height%(0))
+  wpoke $1608, pointer(char_idx%(0))
+  wpoke $160a, pointer(stage_x_offs%(0))
+  poke $160c, frame_count%
+
+  for k = 0 to frame_count% - 1
+    ox%(k) = k * 6 * 8
+    oy%(k) = 10 * 8
   next k
 
   ' hard-coding a few values that will be variable in future
   fidx = 0
-  ' chr_width(0) = 3
-  ' chr_height(0) = 3
-  ' char_idx(0) = $1008
-  ' frame_count = 1
-  ' anim_count = 0
 
   oldyy = INVALID
 
@@ -207,6 +211,8 @@ trap runstop_trapper
   poke $d059, bkp_d059&
   poke $d05e, bkp_d05e&
 
+  key on
+
   end
 
 
@@ -232,17 +238,17 @@ trap runstop_trapper
 .stage_object
 '------------
   if fidx > 0 then begin
-    stage_x_offs(fidx) = stage_x_offs(fidx-1) + chr_width(fidx-1) + 1
+    stage_x_offs%(fidx) = stage_x_offs%(fidx-1) + chr_width%(fidx-1) + 1
   bend
 
   for y = 0 to 49
     ' prepare initial gotox char
-    poke $ff80000 + y * WIDTH + 160 + stage_x_offs(fidx) * 2, %10010000
-    wpoke $40800 + y * WIDTH + 160 + stage_x_offs(fidx) * 2, 80 * 8  ' keep off-screen initially
+    poke $ff80000 + y * WIDTH + 160 + stage_x_offs%(fidx) * 2, %10010000
+    wpoke $40800 + y * WIDTH + 160 + stage_x_offs%(fidx) * 2, 80 * 8  ' keep off-screen initially
 
     ' prepare ending gotox char
-    poke $ff80000 + y * WIDTH + 160 + stage_x_offs(fidx) * 2 + (chr_width(fidx) + 1) * 2, %10010000
-    wpoke $40800 + y * WIDTH + 160 + stage_x_offs(fidx) * 2 + (chr_width(fidx) + 1) * 2, 80 * 8
+    poke $ff80000 + y * WIDTH + 160 + stage_x_offs%(fidx) * 2 + (chr_width%(fidx) + 1) * 2, %10010000
+    wpoke $40800 + y * WIDTH + 160 + stage_x_offs%(fidx) * 2 + (chr_width%(fidx) + 1) * 2, 80 * 8
   next y
 
   gosub draw_object
@@ -256,21 +262,17 @@ trap runstop_trapper
   do while 1
     gosub draw_coords
 
-    old_fidx = fidx
-    for fidx = 0 to frame_count - 1
-      gosub draw_object
-    next fidx
-    fidx = old_fidx
+    gosub draw_objects
 
     get key a$
-    if a$ = KEY_LEFT then ox(fidx) = ox(fidx) - 1
-    if a$ = KEY_RIGHT then ox(fidx) = ox(fidx) + 1
-    if a$ = KEY_UP then oy(fidx) = oy(fidx) - 1
-    if a$ = KEY_DOWN then oy(fidx) = oy(fidx) + 1
+    if a$ = KEY_LEFT then ox%(fidx) = ox%(fidx) - 1
+    if a$ = KEY_RIGHT then ox%(fidx) = ox%(fidx) + 1
+    if a$ = KEY_UP then oy%(fidx) = oy%(fidx) - 1
+    if a$ = KEY_DOWN then oy%(fidx) = oy%(fidx) + 1
     if a$ = KEY_MEGA_Q then goto cleanup
 
     if a$ = "," and fidx > 0 then fidx = fidx - 1
-    if a$ = "." and fidx < frame_count - 1 then fidx = fidx + 1
+    if a$ = "." and fidx < frame_count% - 1 then fidx = fidx + 1
   loop
   return
 
@@ -287,40 +289,58 @@ trap runstop_trapper
   return
 
 
-'-----------
-.draw_object
-'-----------
-  objx = ox(fidx)
-  objy = oy(fidx)
-'  vsync 250
+'------------
+.draw_objects
+'------------
+  vsync 250
   border 3
-  bank 0
-  wpoke $1600, objx
-  wpoke $1602, objy
-  poke $1604, chr_width(fidx)
-  poke $1605, chr_height(fidx)
-  wpoke $1606, char_idx(fidx)
-  poke $1608, stage_x_offs(fidx)
-  bank 128 : border 7 : bank 0
+bank 0
 ^^  sys to $1610, i1
   bank 128
   return
 
   ' TODO: remove below once sys call above works
+
+  old_fidx = fidx
+  for fidx = 0 to frame_count% - 1
+    gosub draw_object
+  next fidx
+  fidx = old_fidx
+  return
+
+
+'-----------
+.draw_object
+'-----------
+'  bank 0
+'  wpoke $1600, ox%(fidx)
+'  wpoke $1602, oy%(fidx)
+'  poke $1604, chr_width%(fidx)
+'  poke $1605, chr_height%(fidx)
+'  wpoke $1606, char_idx%(fidx)
+'  wpoke $1608, stage_x_offs%(fidx)
+'  poke $160a, frame_count%
+'  bank 128 : border 7 : bank 0
+
+  objx = ox%(fidx)
+  objy = oy%(fidx)
+  vsync 250
+  border 3
+
   yy = int(objy / 8)
-  yybot = yy + chr_height(fidx) ' - 1
+  yybot = yy + chr_height%(fidx) ' - 1
   offsy = mod(objy, 8)
 
   ' clear prior position (if needbe)
   if oldyy <> INVALID and yy <> oldyy then begin
     minyy = oldyy
-    maxyy = oldyy + chr_height(fidx) ' - 1
+    maxyy = oldyy + chr_height%(fidx) ' - 1
     if minyy < yy and yy < maxyy then maxyy = yy - 1
     if minyy < yybot and yybot < maxyy then minyy = yybot + 1
 
     ' hide these rows off-screen
     for y = minyy to maxyy
-      wpoke $40800 + y * WIDTH + stage_x_offs(fidx) * 2 + 160, 80 * 8 
+      wpoke $40800 + y * WIDTH + stage_x_offs%(fidx) * 2 + 160, 80 * 8 
     next y
   bend
 
@@ -328,12 +348,12 @@ trap runstop_trapper
   border 2
 
   ' draw chars on desired yrows, and at right objx position
-  idx = char_idx(fidx)
-  tmpx = chr_width(fidx) - 1
-  tmpy = chr_height(fidx) - 1
+  idx = char_idx%(fidx)
+  tmpx = chr_width%(fidx) - 1
+  tmpy = chr_height%(fidx) - 1
   for x = 0 to tmpx
     for y = 0 to tmpy
-      k = $40800 + (yy + y) * WIDTH + stage_x_offs(fidx) * 2 + 162 + x * 2
+      k = $40800 + (yy + y) * WIDTH + stage_x_offs%(fidx) * 2 + 162 + x * 2
       wpoke k, idx
 
       ' copy last y-line an extra line below (to help with y scrolling)
@@ -352,14 +372,14 @@ trap runstop_trapper
   k = x + (offsy * 32 + 16) * 256
 
   ' set initial rowmask
-  tmp = $ff80000 + yy * WIDTH + stage_x_offs(fidx) * 2 + 160
+  tmp = $ff80000 + yy * WIDTH + stage_x_offs%(fidx) * 2 + 160
   poke tmp, %10011000
   poke tmp + 1, 255 << offsy and 255
 
 
   ' set initial gotox char
   for y = yy to yy + tmpy
-    tmp = y * WIDTH + stage_x_offs(fidx) * 2 + 160
+    tmp = y * WIDTH + stage_x_offs%(fidx) * 2 + 160
     if y <> yy then begin
       poke $ff80000 + tmp, %10010000
     bend
@@ -368,10 +388,10 @@ trap runstop_trapper
 
   ' set final yoffs
   k = x + ( ((8-offsy) and 7) * 32) * 256
-  wpoke $40800 + yybot * WIDTH + stage_x_offs(fidx) * 2 + 160, k
+  wpoke $40800 + yybot * WIDTH + stage_x_offs%(fidx) * 2 + 160, k
 
   ' set final rowmask
-  tmp = $ff80000 + yybot * WIDTH + stage_x_offs(fidx) * 2 + 160
+  tmp = $ff80000 + yybot * WIDTH + stage_x_offs%(fidx) * 2 + 160
   poke tmp, %10011000
   poke tmp + 1, 255 >> (8 - offsy) and 255
 
@@ -425,15 +445,15 @@ trap runstop_trapper
     dopen #2,(ln$),r,u8
     if ds then tclr = 2 : a$ = "disk error" : gosub draw_text : return
 
-    get#2, frame_count
+    get#2, frame_count%
 
-    for k = 0 to frame_count - 1
+    for k = 0 to frame_count% - 1
       get#2, xx : char_type(k) = xx and 255
       get#2, xx : default_slice(k) = xx and 255
-      get#2, xx : chr_width(k) = xx and 255
-      get#2, xx : chr_height(k) = xx and 255
+      get#2, xx : chr_width%(k) = xx and 255
+      get#2, xx : chr_height%(k) = xx and 255
       get#2, xx, yy
-      char_idx(k) = (xx and 255) + (yy and 255) * 256
+      char_idx%(k) = (xx and 255) + (yy and 255) * 256
       get#2, xx : bb_cnt(k) = xx and 255
       if bb_cnt(k) > 0 then begin
         for kk = 0 to bb_cnt(k) - 1
@@ -442,7 +462,7 @@ trap runstop_trapper
         next kk
       bend
 
-      char_count = char_count + chr_width(k) * chr_height(k)
+      char_count = char_count + chr_width%(k) * chr_height%(k)
     next k
 
     ' todo : add animation details here
@@ -456,7 +476,7 @@ trap runstop_trapper
 
     for k = 0 to char_count * $40
       get#2, xx
-      poke char_idx(0) * $40 + k, xx and 255
+      poke char_idx%(0) * $40 + k, xx and 255
     next k
 
     dclose #2
