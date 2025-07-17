@@ -316,28 +316,10 @@ objy: !word $00
 chr_width: !byte $00
 chr_height: !byte $00
 idx: !word $00  // aka. char_idx
+stage_x_offs: !word $00
 
 * = $1610
   jmp draw_object     // 1600
-// 	jmp fade_colours_to_white	// 7e00
-// 	jmp fade_between_colours	// 7e03
-// 	jmp cycle_alt_palette		// 7e06
-// 	jmp draw_petscii_frame		// 7e09
-// 	jmp fade_colours_to_black	// 7e0c
-// 	jmp iter_starfield		// 7e0f
-// 	jmp scroll_canvas_right		// 7e12
-// 	jmp page_flip			// 7e15
-// 	// megaplot routines
-// 	// -----------------
-// 	jmp init_and_plot		// 7e18
-// 	jmp init			// 7e1b
-// 	jmp plot			// 7e1e
-// 	jmp line			// 7e21
-// 	jmp set_colour			// 7e24
-// 	// rotate routines
-// 	// ---------------
-// 	jmp iter_greet_text		// 7e27
-// 	jmp page_flip_faster		// 7e2a
 
 
 //---------
@@ -348,10 +330,20 @@ draw_object:
 //   - word objy@1602
 //   - byte chr_width@1604
 //   - byte chr_height@1605
+//   - word char_idx@1606
+//   - byte stage_offs_x@1608
 
 //  yy = int(objy / 8)
     lda #$02
     sta $d020
+
+    clc
+    lda stage_x_offs
+    rol
+    sta stage_x_offs
+    lda stage_x_offs+1
+    rol
+    sta stage_x_offs+1
 
     +copy16 tempval, objy
     +lsr16_by tempval, 3
@@ -420,7 +412,7 @@ skip_adjust_minyy:
 //    for y = minyy to maxyy
       ldy minyy
 -:
-      //      wpoke $40800 + y * WIDTH + 160, 80 * 8 
+      //      wpoke $40800 + y * WIDTH + stage_x_offs(fidx) * 2 + 160, 80 * 8 
         // outputw = y * WIDTH
         sty inputw1
         lda #$00
@@ -431,6 +423,8 @@ skip_adjust_minyy:
         lda #$00
         sta inputw2+1
         +multiply16 inputw1, inputw2, outputw
+
+        +add16 outputw, stage_x_offs, outputw
 
         // outputw = outputw + $800 + 160
         lda #160
@@ -488,7 +482,7 @@ lpx:
 //    for y = 0 to tmpy
       ldy #$00
 lpy:
-//      k = $40800 + (yy + y) * WIDTH + 162 + x * 2
+//      k = $40800 + (yy + y) * WIDTH + stage_x_offs(fidx) * 2 + 162 + x * 2
 
         // outputw = yy + y
         lda yy
@@ -508,6 +502,8 @@ lpy:
         lda #$00
         sta inputw2+1
         +multiply16 outputw, inputw2, outputw
+
+        +add16 outputw, stage_x_offs, outputw
 
         // outputw = outputw + $800 + 162 = 8A2
         lda #162
@@ -611,7 +607,7 @@ skip_copy_last_line_twice:
     sta tempval+1
 
 //  ' set initial rowmask
-//  tmp = $ff80000 + yy * WIDTH + 160
+//  tmp = $ff80000 + yy * WIDTH + stage_x_offs(fidx) * 2 + 160
 
         // outputw = outputw * WIDTH
         lda yy
@@ -624,6 +620,8 @@ skip_copy_last_line_twice:
         lda #$00
         sta inputw2+1
         +multiply16 inputw1, inputw2, outputw
+
+        +add16 outputw, stage_x_offs, outputw
 
         // outputw = outputw + 160
         lda #160
@@ -671,7 +669,7 @@ skip_copy_last_line_twice:
 //  for y = yy to yy + tmpy
     ldy yy
 lpyy:
-//    tmp = y * WIDTH + 160
+//    tmp = y * WIDTH + stage_x_offs(fidx) * 2 + 160
         // outputw = y * WIDTH
         sty inputw1
         lda #$00
@@ -682,6 +680,8 @@ lpyy:
         lda #$00
         sta inputw2+1
         +multiply16 inputw1, inputw2, outputw
+
+        +add16 outputw, stage_x_offs, outputw
 
         // outputw = outputw + 160
         lda #160
@@ -766,6 +766,8 @@ skip_poke:
       sta inputw2+1
       +multiply16 inputw1, inputw2, outputw
 
+      +add16 outputw, stage_x_offs, outputw
+
       // outputw = outputw + 160
       lda #160
       sta inputw1
@@ -774,7 +776,7 @@ skip_poke:
 
       +add16 outputw, inputw1, outputw
 
-//  wpoke $40800 + yybot * WIDTH + 160, k
+//  wpoke $40800 + yybot * WIDTH + stage_x_offs(fidx) * 2 + 160, k
       lda outputw
       sta FOURPTR
       clc
@@ -790,7 +792,7 @@ skip_poke:
       sta [FOURPTR],z
 
 //  ' set final rowmask
-//  tmp = $ff80000 + yybot * WIDTH + 160
+//  tmp = $ff80000 + yybot * WIDTH + stage_x_offs(fidx) * 2 + 160
     lda outputw
     sta CLRPTR
     lda outputw+1

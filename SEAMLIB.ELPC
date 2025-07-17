@@ -292,7 +292,7 @@ trap runstop_trapper
 '-----------
   objx = ox(fidx)
   objy = oy(fidx)
-  vsync 250
+'  vsync 250
   border 3
   bank 0
   wpoke $1600, objx
@@ -302,9 +302,9 @@ trap runstop_trapper
   wpoke $1606, char_idx(fidx)
   poke $1608, stage_x_offs(fidx)
   bank 128 : border 7 : bank 0
-'^^  sys to $1610, i1
-'  bank 128
-'  return
+^^  sys to $1610, i1
+  bank 128
+  return
 
   ' TODO: remove below once sys call above works
   yy = int(objy / 8)
