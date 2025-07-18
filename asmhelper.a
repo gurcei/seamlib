@@ -442,7 +442,9 @@ draw_object:
 
 //  ' clear prior position (if needbe)
 //  if oldyy <> INVALID and yy <> oldyy then begin
-    lda oldyy
+    ldx fidx
+    lda array_oldyy,x
+    sta oldyy
     cmp #$80
     lbeq skip_clear_old_position
 
@@ -901,7 +903,8 @@ skip_poke:
 
 //  oldyy = yy
     lda yy
-    sta oldyy
+    ldx fidx
+    sta array_oldyy,x
 //
 //  border 0
 //  return
@@ -933,3 +936,4 @@ chr_width: !byte $00
 chr_height: !byte $00
 char_idx: !word $00  // aka. char_idx
 stage_x_offs: !word $00
+array_oldyy: !fill 100, $80
