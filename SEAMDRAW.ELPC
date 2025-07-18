@@ -21,6 +21,8 @@
 #declare old_chr_width, old_chr_height, old_fidx, tmp, tmp2
 #declare new_char_idx, skip_clear
 
+#declare rect_state, rect_x1%, rect_y1%, rect_x2%, rect_y2%, dr
+
 
 '-------
 .defines
@@ -46,6 +48,8 @@
 #define KEY_MEGA_C = "¼"
 #define KEY_MEGA_V = "¾"
 #define KEY_MEGA_D = "¬"
+#define KEY_MEGA_B = "¿"
+#define KEY_MEGA_R = "²"
 #define KEY_DEL = "{x14}"
 #define KEY_CLR = "{x93}"
 
@@ -63,6 +67,8 @@ trap runstop_trapper
 .main
 '----
   gosub init
+
+  gosub clear_frame_chars
 
   gosub redraw_screen
 
@@ -155,7 +161,76 @@ trap runstop_trapper
     cursor_clr = mod(cursor_clr + 1, 16)
 
     if a$ = KEY_MEGA_D then gosub duplicate
+
+    if a$ = KEY_MEGA_B then gosub prompt_bounding_box
+
+    if a$ = KEY_MEGA_R then gosub do_rectangle
   loop
+  return
+
+
+'------------
+.do_rectangle
+'------------
+  if rect_state = 0 then begin
+    rect_x1% = cx
+    rect_y1% = cy
+    rect_state = 1
+
+  bend : else begin
+
+    rect_x2% = cx
+    rect_y2% = cy
+
+    dr = 1
+    if rect_x1% > rect_x2% then dr = -1
+
+    for cx = rect_x1% to rect_x2% step dr
+      cy = rect_y1%
+      gosub plot_pixel
+      cy = rect_y2%
+      gosub plot_pixel
+    next cx
+
+    dr = 1
+    if rect_y1% > rect_y2% then dr = -1
+
+    for cy = rect_y1% to rect_y2% step dr
+      cx = rect_x1%
+      gosub plot_pixel
+      cx = rect_x2%
+      gosub plot_pixel
+    next cy
+
+    rect_state = 0
+  bend
+
+  return
+
+
+'----------
+.plot_pixel
+'----------
+  poke $ff80000 + (cy + 2) * WIDTH + cx * 2 + 1, sel_clr
+  x = mod(cx, 8)
+  y = mod(cy, 8)
+  xx = int(cx / 8)
+  yy = int(cy / 8)
+  poke char_idx(fidx) * $40 + $40 * chr_height(fidx) * xx + $40 * yy + y * 8 + x, sel_clr
+  return
+
+
+'-------------------
+.prompt_bounding_box
+'-------------------
+  do while 1
+    get key a$
+    if a$ = KEY_ESCAPE or a$ = KEY_MEGA_Q then begin
+      ' todo: cleanup extra text on screen
+      exit
+    bend
+  loop
+
   return
 
 
@@ -737,6 +812,7 @@ trap runstop_trapper
 .cleanup
   print "{x93}";my_err$
   trap
+  key on
   poke $d054, bkp_d054&
   poke $d058, bkp_d058&
   poke $d059, bkp_d059&
