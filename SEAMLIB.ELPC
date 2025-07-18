@@ -32,7 +32,7 @@
 #define KEY_RIGHT = "{x1D}"
 #define KEY_MEGA_Q = "«"
 
-#define WIDTH = 200
+#define WIDTH = 250
 
 #define OP_COPY = 0
 #define OP_MIX  = 1

@@ -18,7 +18,9 @@
 #declare bb_cnt(100)
 
 #declare numeric_flag, ret, tmp_chr_width, tmp_chr_height
-#declare old_chr_width, old_chr_height
+#declare old_chr_width, old_chr_height, old_fidx, tmp, tmp2
+#declare new_char_idx, skip_clear
+
 
 '-------
 .defines
@@ -43,10 +45,11 @@
 #define KEY_MEGA_Q = "«"
 #define KEY_MEGA_C = "¼"
 #define KEY_MEGA_V = "¾"
+#define KEY_MEGA_D = "¬"
 #define KEY_DEL = "{x14}"
 #define KEY_CLR = "{x93}"
 
-#define WIDTH = 200
+#define WIDTH = 250
 
 #define OP_COPY = 0
 #define OP_MIX  = 1
@@ -151,7 +154,40 @@ trap runstop_trapper
     if a$ = KEY_CLR then gosub prompt_clear
     cursor_clr = mod(cursor_clr + 1, 16)
 
+    if a$ = KEY_MEGA_D then gosub duplicate
   loop
+  return
+
+
+'---------
+.duplicate
+'---------
+  tmp_chr_width = chr_width(fidx)
+  tmp_chr_height = chr_height(fidx)
+  old_fidx = fidx
+  tmp = frame_count - 1
+  new_char_idx = char_idx(tmp) + chr_width(tmp) * chr_height(tmp)
+
+  tx = 50 : ty = 3 : a$ = "new_char_idx: " + hex$(new_char_idx)
+  gosub draw_text
+
+  tmp = chr_width(fidx) * chr_height(fidx) * $40 - 1
+
+  tx = 50 : ty = 4 : a$ = "tmp-num-pixels: " + str$(tmp)
+  gosub draw_text
+
+  tmp2 = char_idx(fidx) * $40
+
+  tx = 50 : ty = 5 : a$ = "tmp2-old-pixel-data@: " + hex$(tmp2)
+  gosub draw_text
+  get key a$
+
+  for k = 0 to tmp
+    poke new_char_idx * $40 + k, peek(tmp2 + k)
+  next k
+
+  skip_clear = 1
+  gosub add_frame
   return
 
 
@@ -211,6 +247,7 @@ trap runstop_trapper
 
   tmp_chr_height = val(ln$)
 
+.add_frame
   ' we got both params from user, now make it
   fidx = frame_count
   frame_count = frame_count + 1
@@ -218,7 +255,10 @@ trap runstop_trapper
   chr_height(fidx) = tmp_chr_height
   char_idx(fidx) = char_idx(fidx - 1) + chr_width(fidx-1) * chr_height(fidx-1)
 
-  gosub clear_frame_chars
+  if skip_clear = 0 then begin
+    gosub clear_frame_chars
+    skip_clear = 0
+  bend
 
   gosub redraw_screen
 
