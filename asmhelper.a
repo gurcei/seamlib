@@ -329,17 +329,20 @@ WIDTH = 250
 	!word $0000	// modulo (ignore)
 }
 
+// INTERFACE VARS
+// ==============
+* = $1600
+array_objx: !word $00  // spr
+array_objy: !word $00  // spr
+array_chr_width: !word $00  // spr
+array_chr_height: !word $00  // spr
+array_char_idx: !word $00  // spr
+array_stage_x_offs: !word $00  // spr
+spr_count: !byte $00  // spr
+
+
 // ROUTINES
 // ========
-* = $1600
-array_objx: !word $00
-array_objy: !word $00
-array_chr_width: !word $00
-array_chr_height: !word $00
-array_char_idx: !word $00  // aka. char_idx
-array_stage_x_offs: !word $00
-frame_count: !byte $00
-
 * = $1610
   jmp draw_objects     // 1600
 
@@ -353,25 +356,25 @@ draw_objects:
 //   - byte array_chr_height@1606
 //   - word array_char_idx@1608
 //   - word array_stage_x_offs@160a
-//   - byte frame_count@160c
+//   - byte spr_count@160c
 
-//  old_fidx = fidx
+//  old_sidx = sidx
     // skip this, not needed
 
-//  for fidx = 0 to frame_count% - 1
+//  for sidx = 0 to spr_count% - 1
     lda #$00
-    sta fidx
+    sta sidx
 -:
 //    gosub draw_object
     jsr prepare_vars
     jsr draw_object
-//  next fidx
-    inc fidx
-    lda fidx
-    cmp frame_count
+//  next sidx
+    inc sidx
+    lda sidx
+    cmp spr_count
     bne -
 
-//  fidx = old_fidx
+//  sidx = old_sidx
 //  return
   rts
 
@@ -386,7 +389,7 @@ prepare_vars:
   sta ONEPTR+2
 
   // let z hold the byte-offset to the array we need
-  lda fidx
+  lda sidx
   clc
   rol
   taz
@@ -410,7 +413,6 @@ draw_object:
 //   - byte chr_height@1605
 //   - word char_idx@1606
 //   - word stage_x_offs@1608
-//   - byte frame_count@160a
 
 //  yy = int(objy / 8)
     lda #$02
@@ -429,7 +431,7 @@ draw_object:
     lda tempval
     sta yy
 
-//  yybot = yy + chr_height(fidx) ' - 1
+//  yybot = yy + chr_height(sidx) ' - 1
     lda yy
     clc
     adc chr_height
@@ -442,7 +444,7 @@ draw_object:
 
 //  ' clear prior position (if needbe)
 //  if oldyy <> INVALID and yy <> oldyy then begin
-    ldx fidx
+    ldx sidx
     lda array_oldyy,x
     sta oldyy
     cmp #$80
@@ -455,7 +457,7 @@ draw_object:
       lda oldyy
       sta minyy
 
-//    maxyy = oldyy + chr_height(fidx) ' - 1
+//    maxyy = oldyy + chr_height(sidx) ' - 1
       clc
       adc chr_height
       sta maxyy
@@ -493,7 +495,7 @@ skip_adjust_minyy:
 //    for y = minyy to maxyy
       ldy minyy
 -:
-      //      wpoke $40800 + y * WIDTH + stage_x_offs(fidx) * 2 + 160, 80 * 8 
+      //      wpoke $40800 + y * WIDTH + stage_x_offs(sidx) * 2 + 160, 80 * 8 
         // outputw = y * WIDTH
         sty inputw1
         lda #$00
@@ -545,14 +547,14 @@ skip_clear_old_position:
 //  border 2
 //
 //  ' draw chars on desired yrows, and at right objx position
-//  char_idx = char_idx(fidx)
+//  char_idx = char_idx(sidx)
 
-//  tmpx = chr_width(fidx) - 1
+//  tmpx = chr_width(sidx) - 1
     ldx chr_width
     dex
     stx tmpx
 
-//  tmpy = chr_height(fidx) - 1
+//  tmpy = chr_height(sidx) - 1
     ldx chr_height
     dex
     stx tmpy
@@ -563,7 +565,7 @@ lpx:
 //    for y = 0 to tmpy
       ldy #$00
 lpy:
-//      k = $40800 + (yy + y) * WIDTH + stage_x_offs(fidx) * 2 + 162 + x * 2
+//      k = $40800 + (yy + y) * WIDTH + stage_x_offs(sidx) * 2 + 162 + x * 2
 
         // outputw = yy + y
         lda yy
@@ -688,7 +690,7 @@ skip_copy_last_line_twice:
     sta tempval+1
 
 //  ' set initial rowmask
-//  tmp = $ff80000 + yy * WIDTH + stage_x_offs(fidx) * 2 + 160
+//  tmp = $ff80000 + yy * WIDTH + stage_x_offs(sidx) * 2 + 160
 
         // outputw = outputw * WIDTH
         lda yy
@@ -750,7 +752,7 @@ skip_copy_last_line_twice:
 //  for y = yy to yy + tmpy
     ldy yy
 lpyy:
-//    tmp = y * WIDTH + stage_x_offs(fidx) * 2 + 160
+//    tmp = y * WIDTH + stage_x_offs(sidx) * 2 + 160
         // outputw = y * WIDTH
         sty inputw1
         lda #$00
@@ -857,7 +859,7 @@ skip_poke:
 
       +add16 outputw, inputw1, outputw
 
-//  wpoke $40800 + yybot * WIDTH + stage_x_offs(fidx) * 2 + 160, k
+//  wpoke $40800 + yybot * WIDTH + stage_x_offs(sidx) * 2 + 160, k
       lda outputw
       sta FOURPTR
       clc
@@ -873,7 +875,7 @@ skip_poke:
       sta [FOURPTR],z
 
 //  ' set final rowmask
-//  tmp = $ff80000 + yybot * WIDTH + stage_x_offs(fidx) * 2 + 160
+//  tmp = $ff80000 + yybot * WIDTH + stage_x_offs(sidx) * 2 + 160
     lda outputw
     sta CLRPTR
     lda outputw+1
@@ -903,7 +905,7 @@ skip_poke:
 
 //  oldyy = yy
     lda yy
-    ldx fidx
+    ldx sidx
     sta array_oldyy,x
 //
 //  border 0
@@ -928,7 +930,7 @@ outputw: !word $00
 tmpx: !byte $00
 tmpy: !byte $00
 tempval: !word $00
-fidx: !byte $00
+sidx: !byte $00
 
 objx: !word $00
 objy: !word $00

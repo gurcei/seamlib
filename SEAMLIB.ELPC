@@ -8,16 +8,23 @@
 #declare bkp_d054&, bkp_d058&, bkp_d059&, bkp_d05e&
 #declare my_err$, k, idx, x, y, value
 
+' frame details
 #declare default_slice(100), char_type(100), char_idx%(100)
 #declare chr_width%(100), chr_height%(100)
 #declare bb_tlx(100,10), bb_tly(100,10), bb_brx(100,10), bb_bry(100,10)
-#declare bb_cnt(100), ox%(100), oy%(100)
-#declare stage_x_offs%(100), old_fidx
+#declare bb_cnt(100)
+#declare old_fidx
+
+' sprite details
+#declare spr_chr_width%(100), spr_chr_height%(100), spr_char_idx%(100)
+#declare spr_frame_count%(100), spr_frames%(100,20), spr_visible%(100)
+#declare spr_fidx%(100), stage_x_offs%(100), spr_count
+#declare spr_ox%(100), spr_oy%(100)
 
 #declare objx, objy, oldyy, minyy, maxyy, yybot 
 #declare a$, yy, offsy, tmp, tmpx, tmpy
 #declare tclr, tx, ty, rev_flag, chr
-#declare ln$, char_count, xx, kk
+#declare ln$, char_count, xx, kk, sidx, old_sidx, anim_tmr
 
 
 '-------
@@ -42,6 +49,26 @@
 
 #define INVALID = -666
 
+' seam frames
+#define F_CARPET = 0
+#define F_WOLF1 = 1
+#define F_KEY = 2
+#define F_BANANA = 3
+#define F_WBOTTLE = 4
+#define F_WOLF2 = 5
+
+' seam sprites
+#define S_CARPET = 0
+#define S_KEY = 1
+#define S_BANANA = 2
+#define S_WBOTTLE = 3
+#define S_WOLF1 = 4
+#define S_WOLF2 = 5
+#define S_WOLF3 = 6
+#define S_WOLF4 = 7
+
+spr_count = 8
+
 trap runstop_trapper
 
 '----
@@ -51,11 +78,11 @@ trap runstop_trapper
 
   gosub clrscreen
 
-  for fidx = 0 to frame_count% - 1
+  for sidx = 0 to spr_count - 1
     gosub stage_object
-  next fidx
+  next sidx
 
-  fidx = 0
+  sidx = 0
   gosub user_input
 
   end
@@ -74,17 +101,51 @@ trap runstop_trapper
   key off
 
   ' prepare vars for assembly
-  wpoke $1600, pointer(ox%(0))
-  wpoke $1602, pointer(oy%(0))
-  wpoke $1604, pointer(chr_width%(0))
-  wpoke $1606, pointer(chr_height%(0))
-  wpoke $1608, pointer(char_idx%(0))
+  wpoke $1600, pointer(spr_ox%(0))
+  wpoke $1602, pointer(spr_oy%(0))
+  wpoke $1604, pointer(spr_chr_width%(0))
+  wpoke $1606, pointer(spr_chr_height%(0))
+  wpoke $1608, pointer(spr_char_idx%(0))
   wpoke $160a, pointer(stage_x_offs%(0))
-  poke $160c, frame_count%
+  poke $160c, spr_count
 
-  for k = 0 to frame_count% - 1
-    ox%(k) = k * 6 * 8
-    oy%(k) = 10 * 8
+  ' prepare sprite details
+  spr_chr_width%(S_CARPET) = 3
+  spr_chr_height%(S_CARPET) = 3
+  spr_char_idx%(S_CARPET) = char_idx%(F_CARPET)
+  spr_frame_count%(S_CARPET) = 1
+  spr_frames%(S_CARPET, 0) = F_CARPET
+
+  spr_chr_width%(S_KEY) = 1
+  spr_chr_height%(S_KEY) = 1
+  spr_char_idx%(S_KEY) = char_idx%(F_KEY)
+  spr_frame_count%(S_KEY) = 1
+  spr_frames%(S_KEY, 0) = F_KEY
+
+  spr_chr_width%(S_BANANA) = 2
+  spr_chr_height%(S_BANANA) = 2
+  spr_char_idx%(S_BANANA) = char_idx%(F_BANANA)
+  spr_frame_count%(S_BANANA) = 1
+  spr_frames%(S_BANANA, 0) = F_BANANA
+
+  spr_chr_width%(S_WBOTTLE) = 3
+  spr_chr_height%(S_WBOTTLE) = 3
+  spr_char_idx%(S_WBOTTLE) = char_idx%(F_WBOTTLE)
+  spr_frame_count%(S_WBOTTLE) = 1
+  spr_frames%(S_WBOTTLE, 0) = F_WBOTTLE
+
+  for k = 0 to 3
+    spr_chr_width%(S_WOLF1 + k) = 4
+    spr_chr_height%(S_WOLF1 + k) = 4
+    spr_char_idx%(S_WOLF1 + k) = char_idx%(F_WOLF1)
+    spr_frame_count%(S_WOLF1 + k) = 2
+    spr_frames%(S_WOLF1 + k, 0) = F_WOLF1
+    spr_frames%(S_WOLF1 + k, 1) = F_WOLF2
+  next k
+  
+  for k = 0 to spr_count - 1
+    spr_ox%(k) = k * 6 * 8
+    spr_oy%(k) = 10 * 8
   next k
 
   ' hard-coding a few values that will be variable in future
@@ -237,18 +298,18 @@ trap runstop_trapper
 '------------
 .stage_object
 '------------
-  if fidx > 0 then begin
-    stage_x_offs%(fidx) = stage_x_offs%(fidx-1) + chr_width%(fidx-1) + 1
+  if sidx > 0 then begin
+    stage_x_offs%(sidx) = stage_x_offs%(sidx-1) + spr_chr_width%(sidx-1) + 1
   bend
 
   for y = 0 to 49
     ' prepare initial gotox char
-    poke $ff80000 + y * WIDTH + 160 + stage_x_offs%(fidx) * 2, %10010000
-    wpoke $40800 + y * WIDTH + 160 + stage_x_offs%(fidx) * 2, 80 * 8  ' keep off-screen initially
+    poke $ff80000 + y * WIDTH + 160 + stage_x_offs%(sidx) * 2, %10010000
+    wpoke $40800 + y * WIDTH + 160 + stage_x_offs%(sidx) * 2, 80 * 8  ' keep off-screen initially
 
     ' prepare ending gotox char
-    poke $ff80000 + y * WIDTH + 160 + stage_x_offs%(fidx) * 2 + (chr_width%(fidx) + 1) * 2, %10010000
-    wpoke $40800 + y * WIDTH + 160 + stage_x_offs%(fidx) * 2 + (chr_width%(fidx) + 1) * 2, 80 * 8
+    poke $ff80000 + y * WIDTH + 160 + stage_x_offs%(sidx) * 2 + (spr_chr_width%(sidx) + 1) * 2, %10010000
+    wpoke $40800 + y * WIDTH + 160 + stage_x_offs%(sidx) * 2 + (spr_chr_width%(sidx) + 1) * 2, 80 * 8
   next y
 
   gosub draw_object
@@ -260,20 +321,40 @@ trap runstop_trapper
 .user_input
 '----------
   do while 1
-    gosub draw_coords
+    ' gosub draw_coords
 
     gosub draw_objects
 
-    get key a$
-    if a$ = KEY_LEFT then ox%(fidx) = ox%(fidx) - 1
-    if a$ = KEY_RIGHT then ox%(fidx) = ox%(fidx) + 1
-    if a$ = KEY_UP then oy%(fidx) = oy%(fidx) - 1
-    if a$ = KEY_DOWN then oy%(fidx) = oy%(fidx) + 1
+    gosub animate_objects
+
+    get a$
+    if a$ = KEY_LEFT then spr_ox%(sidx) = spr_ox%(sidx) - 1
+    if a$ = KEY_RIGHT then spr_ox%(sidx) = spr_ox%(sidx) + 1
+    if a$ = KEY_UP then spr_oy%(sidx) = spr_oy%(sidx) - 1
+    if a$ = KEY_DOWN then spr_oy%(sidx) = spr_oy%(sidx) + 1
     if a$ = KEY_MEGA_Q then goto cleanup
 
-    if a$ = "," and fidx > 0 then fidx = fidx - 1
-    if a$ = "." and fidx < frame_count% - 1 then fidx = fidx + 1
+    if a$ = "," and sidx > 0 then sidx = sidx - 1
+    if a$ = "." and sidx < spr_count - 1 then sidx = sidx + 1
   loop
+  return
+
+
+'---------------
+.animate_objects
+'---------------
+  anim_tmr = mod (anim_tmr + 1, 8)
+
+  if anim_tmr = 0 then begin
+    for k = 0 to 3
+      fidx = spr_fidx%(S_WOLF1 + k)
+      fidx = mod(fidx + 1, 2)
+      spr_fidx%(S_WOLF1 + k) = fidx
+      tmp = char_idx%(spr_frames%(S_WOLF1 + k, fidx))
+      spr_char_idx%(S_WOLF1 + k) = tmp
+    next k
+  bend
+
   return
 
 
@@ -281,10 +362,10 @@ trap runstop_trapper
 .draw_coords
 '-----------
   tclr = 0 : tx = 5 : ty = 4
-  a$ = "frame index =" + str$(fidx)
+  a$ = "sprite index =" + str$(sidx)
   gosub draw_text
   tclr = 0 : tx = 5 : ty = 5
-  a$ = "x =" + str$(objx) + ", y =" + str$(objy) + "     "
+  a$ = "x =" + str$(spr_ox%(sidx)) + ", y =" + str$(spr_oy%(sidx)) + "     "
   gosub draw_text
   return
 
@@ -301,11 +382,11 @@ bank 0
 
   ' TODO: remove below once sys call above works
 
-  old_fidx = fidx
-  for fidx = 0 to frame_count% - 1
+  old_sidx = sidx
+  for sidx = 0 to spr_count - 1
     gosub draw_object
-  next fidx
-  fidx = old_fidx
+  next sidx
+  sidx = old_sidx
   return
 
 
@@ -313,8 +394,8 @@ bank 0
 .draw_object
 '-----------
 '  bank 0
-'  wpoke $1600, ox%(fidx)
-'  wpoke $1602, oy%(fidx)
+'  wpoke $1600, spr_ox%(fidx)
+'  wpoke $1602, spr_oy%(fidx)
 '  poke $1604, chr_width%(fidx)
 '  poke $1605, chr_height%(fidx)
 '  wpoke $1606, char_idx%(fidx)
@@ -322,8 +403,8 @@ bank 0
 '  poke $160a, frame_count%
 '  bank 128 : border 7 : bank 0
 
-  objx = ox%(fidx)
-  objy = oy%(fidx)
+  objx = spr_ox%(sidx)
+  objy = spr_oy%(sidx)
   vsync 250
   border 3
 
