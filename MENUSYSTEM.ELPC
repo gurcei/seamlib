@@ -246,37 +246,6 @@ trap runstop_trapper
   bank 128
   return
 
-  idx = 0
-  rev_flag = 0
-  for k = 1 to len(a$)
-    chr = asc(mid$(a$,k,1))
-    if mid$(a$,k,1) = KEY_REV_ON then rev_flag = 1 : goto nxtdt
-    if mid$(a$,k,1) = KEY_REV_OFF then rev_flag = 0 : goto nxtdt
-
-    gosub petscii_to_screencode
-
-    if rev_flag = 1 then chr = chr or $80
-
-    wpoke $40800 + ty * WIDTH + (tx + idx) * 2, chr
-    poke $ff80000 + ty * WIDTH + (tx + idx) * 2 + 1, tclr
-    idx = idx + 1
-.nxtdt
-  next k
-  return
-
-
-'---------------------
-.petscii_to_screencode
-'---------------------
-  if chr>=$00 and chr<=$1f then chr = chr or $80 : return
-  if chr>=$20 and chr<=$3f then return
-  if chr>=$40 and chr<=$5f then chr=chr and $bf : return
-  if chr>=$60 and chr<=$7f then chr=chr and $df : return
-  if chr>=$80 and chr<=$9f then chr=chr or $40 : return
-  if chr>=$a0 and chr<=$bf then chr=(chr and $7f) or $40 : return
-  if chr>=$c0 and chr<=$fe then chr=chr and $7f : return
-  return
-
 
 '---------
 .clrscreen
