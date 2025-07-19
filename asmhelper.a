@@ -332,20 +332,230 @@ WIDTH = 250
 // INTERFACE VARS
 // ==============
 * = $1600
-array_objx: !word $00  // spr
-array_objy: !word $00  // spr
-array_chr_width: !word $00  // spr
-array_chr_height: !word $00  // spr
-array_char_idx: !word $00  // spr
-array_stage_x_offs: !word $00  // spr
-spr_count: !byte $00  // spr
+
+// draw-objects vars
+array_objx: !word $00           // 1600
+array_objy: !word $00           // 1602
+array_chr_width: !word $00      // 1604
+array_chr_height: !word $00     // 1606
+array_char_idx: !word $00       // 1608
+array_stage_x_offs: !word $00   // 160A
+spr_count: !byte $00            // 160C
+
+// draw-text vars
+tx: !byte $00                   // 160D
+ty: !byte $00                   // 160E
+tclr: !byte $00                 // 160F
 
 
 // ROUTINES
 // ========
 * = $1610
-  jmp draw_objects     // 1600
+  jmp draw_objects    // 1610
+  jmp draw_text       // 1613
 
+
+//-------
+draw_text:
+//-------
+// input:
+//   x = string low-ptr
+//   y = string high-ptr
+  stx ZEROPTR
+  sty ZEROPTR+1
+  lda #$00
+  sta ZEROPTR+2
+  sta ZEROPTR+3
+
+  // prepare pointer to string in ONEPTR
+  ldz #$00
+  lda [ZEROPTR],z
+  sta stringlen
+  inz
+  lda [ZEROPTR],z
+  sta ONEPTR
+  inz
+  lda [ZEROPTR],z
+  sta ONEPTR+1
+  lda #$01
+  sta ONEPTR+2
+  lda #$00
+  sta ONEPTR+3
+
+//   idx = 0
+
+//   rev_flag = 0
+  sta rev_flag
+
+// prepare FOURPTR before loop starts
+//     wpoke $40800 + ty * WIDTH + (tx + idx) * 2, chr
+    clc
+    lda tx
+    rol
+    sta inputw1
+    lda #$00
+    adc #$00
+    sta inputw1+1
+
+    lda #WIDTH
+    sta tmp
+    +multiply8 ty, tmp, inputw2
+
+    +add16 inputw1, inputw2, inputw1
+
+    lda #$00
+    sta inputw2
+    lda #$08
+    sta inputw2+1
+    +add16 inputw1, inputw2, FOURPTR
+
+    lda #$04
+    sta FOURPTR+2
+    lda #$00
+    sta FOURPTR+3
+
+// prepare CLRPTR before loop starts
+//     poke $ff80000 + ty * WIDTH + (tx + idx) * 2 + 1, tclr
+    lda inputw1
+    sta CLRPTR
+    lda inputw1+1
+    sta CLRPTR+1
+    lda #$f8
+    sta CLRPTR+2
+    lda #$0f
+    sta CLRPTR+3
+
+//   for k = 1 to len(a$)
+  ldz #$00
+  stz kptr
+//     chr = asc(mid$(a$,k,1))
+-:
+  ldz kptr
+  lda [ONEPTR],z
+  sta chr
+//     if mid$(a$,k,1) = KEY_REV_ON then rev_flag = 1 : goto nxtdt
+    cmp #18 // KEY_REV_ON
+    bne +
+      lda #$01
+      sta rev_flag
+      lbra ++
+
++:
+//     if mid$(a$,k,1) = KEY_REV_OFF then rev_flag = 0 : goto nxtdt
+    cmp #146 // KEY_REV_OFF
+    bne +
+      lda #$00
+      sta rev_flag
+      lbra ++
++:
+// 
+//     gosub petscii_to_screencode
+    jsr petscii_to_screencode
+// 
+//     if rev_flag = 1 then chr = chr or $80
+    ldx rev_flag
+    beq +
+      lda chr
+      ora #$80
+      sta chr
++:
+
+//     wpoke $40800 + ty * WIDTH + (tx + idx) * 2, chr
+    ldz #$00
+    lda chr
+    sta [FOURPTR],z
+    inz
+    lda #$00
+    sta [FOURPTR],z
+
+    inw FOURPTR
+    bne +
+    inw FOURPTR+2
++:
+    inw FOURPTR
+    bne +
+    inw FOURPTR+2
++:
+//     poke $ff80000 + ty * WIDTH + (tx + idx) * 2 + 1, tclr
+    ldz #$01
+    lda tclr
+    sta [CLRPTR],z
+
+    inw CLRPTR
+    bne +
+    inw CLRPTR+2
++:
+    inw CLRPTR
+    bne +
+    inw CLRPTR+2
++:
+
+//     idx = idx + 1
+// .nxtdt
+++:
+//   next k
+  ldz kptr
+  inz
+  stz kptr
+  cpz stringlen
+  lbne -
+//   return
+  rts
+
+
+//-------------------
+petscii_to_screencode:
+//-------------------
+//  if chr>=$00 and chr<=$1f then chr = chr or $80 : return
+  lda chr
+  cmp #$20
+  bcs +
+    ora #$80
+    sta chr
+    rts
+//  if chr>=$20 and chr<=$3f then return
++:
+  cmp #$40
+  bcs +
+    rts
+//  if chr>=$40 and chr<=$5f then chr=chr and $bf : return
++:
+  cmp #$60
+  bcs +
+    and #$bf
+    sta chr
+    rts
+//  if chr>=$60 and chr<=$7f then chr=chr and $df : return
++:
+  cmp #$80
+  bcs +
+    and #$df
+    sta chr
+    rts
+//  if chr>=$80 and chr<=$9f then chr=chr or $40 : return
++:
+  cmp #$a0
+  bcs +
+    ora #$40
+    sta chr
+    rts
+//  if chr>=$a0 and chr<=$bf then chr=(chr and $7f) or $40 : return
++:
+  cmp #$c0
+  bcs +
+    and #$7f
+    ora #$40
+    sta chr
+    rts
+//  if chr>=$c0 and chr<=$fe then chr=chr and $7f : return
++:
+  cmp #$ff
+  bcs +
+    and #$7f
+    sta chr
+
++:
+  rts
 
 //-----------
 draw_objects:
@@ -939,3 +1149,10 @@ chr_height: !byte $00
 char_idx: !word $00  // aka. char_idx
 stage_x_offs: !word $00
 array_oldyy: !fill 100, $80
+
+// draw_text
+rev_flag: !byte $00
+stringlen: !byte $00
+chr: !byte $00
+tmp: !byte $00
+kptr: !byte $00

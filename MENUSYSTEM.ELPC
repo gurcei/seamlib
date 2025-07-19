@@ -8,7 +8,7 @@
 #declare x, y, xx%, yy%, value
 #declare box_x%, box_y%, box_width%, box_height%, box_title$
 #declare loc
-
+#declare aptr_lo, aptr_hi
 
 '-------
 .defines
@@ -160,12 +160,18 @@ trap runstop_trapper
   bank 128
   key off
 
+  bload "game.pal",p($ffd3100)
+  bload "chars.bin",p($40000),r
+  bload "asmhelper"
   print "{x93}";KEY_ESCAPE;"5";
   
   bkp_d054& = peek($d054)
   bkp_d058& = peek($d058)
   bkp_d059& = peek($d059)
   bkp_d05e& = peek($d05e)
+
+  aptr_lo = pointer(a$) and $ff
+  aptr_hi = pointer(a$) / 256
 
   ' set SEAM mode CHR16 + FCLRHI
   setbit $d054, 0
@@ -312,6 +318,16 @@ trap runstop_trapper
 '---------
 .draw_text
 '---------
+  bank 0
+  poke $160d, tx
+  poke $160e, ty
+  poke $160f, tclr
+
+  sys $1613, 0, aptr_lo, aptr_hi
+
+  bank 128
+  return
+
   idx = 0
   rev_flag = 0
   for k = 1 to len(a$)
