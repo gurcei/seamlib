@@ -3,7 +3,9 @@
 // DEFINES
 // =======
 ZEROPTR = $1c
+  PTR1 = $1c
 ONEPTR = $29
+  PTR2 = $29
 FOURPTR = $18
 CLRPTR = $20
 
@@ -38,8 +40,36 @@ MULTOUT = $d778
 
 WIDTH = 250
 
+OP_COPY = 0
+OP_MIX  = 1
+OP_SWAP = 2
+OP_FILL = 3
+
 // MACROS
 // ======
+!macro inc8 .var8 {
+  lda .var8
+  clc
+  adc #$01
+  sta .var8
+  clc
+}
+
+!macro dec8 .var8 {
+  lda .var8
+  sec
+  sbc #$01
+  sta .var8
+  clc
+}
+
+!macro inc32 .var32 {
+    inw .var32
+    bne +
+    inw .var32+2
++:
+}
+
 !macro prepvar16 .array, .var {
   +copy16 ONEPTR, .array
   lda [ONEPTR],z
@@ -61,10 +91,22 @@ WIDTH = 250
   sty .var
 }
 
+!macro copy8 .dest, .src {
+  lda .src
+  sta .dest
+}
+
 !macro copy16 .dest, .src {
 	lda .src
 	sta .dest
 	lda .src+1
+	sta .dest+1
+}
+
+!macro copy8to16 .dest, .src {
+	lda .src
+	sta .dest
+	lda #$00
 	sta .dest+1
 }
 
@@ -331,28 +373,428 @@ WIDTH = 250
 
 // INTERFACE VARS
 // ==============
-* = $1600
+* = $7e00
 
 // draw-objects vars
-array_objx: !word $00           // 1600
-array_objy: !word $00           // 1602
-array_chr_width: !word $00      // 1604
-array_chr_height: !word $00     // 1606
-array_char_idx: !word $00       // 1608
-array_stage_x_offs: !word $00   // 160A
-spr_count: !byte $00            // 160C
+array_objx: !word $00           // 7E00
+array_objy: !word $00           // 7E02
+array_chr_width: !word $00      // 7E04
+array_chr_height: !word $00     // 7E06
+array_char_idx: !word $00       // 7E08
+array_stage_x_offs: !word $00   // 7E0A
+spr_count: !byte $00            // 7E0C
 
 // draw-text vars
-tx: !byte $00                   // 160D
-ty: !byte $00                   // 160E
-tclr: !byte $00                 // 160F
+tx: !byte $00                   // 7E0D
+ty: !byte $00                   // 7E0E
+tclr: !byte $00                 // 7E0F
+
+// draw-box vars
+box_x: !byte $00                // 7E10
+box_y: !byte $00                // 7E11
+box_width: !byte $00            // 7E12
+box_height: !byte $00           // 7E13
 
 
 // ROUTINES
 // ========
-* = $1610
-  jmp draw_objects    // 1610
-  jmp draw_text       // 1613
+* = $7f00
+  jmp draw_objects    // 7F00
+  jmp draw_text       // 7F03
+  jmp clrscreen       // 7F06
+  jmp draw_box        // 7F09
+  jmp hide_box        // 7F0C
+
+
+//-----------------------------
+prepare_screen_and_clr_pointers:
+//-----------------------------
+// prepare screen pointer
+//      $40800 + ty * WIDTH + tx * 2
+    clc
+    lda tx
+    rol
+    sta inputw1
+    lda #$00
+    adc #$00
+    sta inputw1+1
+
+    lda #WIDTH
+    sta tmp
+    +multiply8 ty, tmp, inputw2
+
+    +add16 inputw1, inputw2, outputw
+
+    lda #$00
+    sta inputw2
+    lda #$08
+    sta inputw2+1
+    +add16 outputw, inputw2, PTR1
+
+    lda #$04
+    sta PTR1+2
+    lda #$00
+    sta PTR1+3
+
+
+// prepare CLRPTR before loop starts
+//     $ff80000 + ty * WIDTH + tx * 2 + 1
+    lda outputw
+    sta CLRPTR
+    lda outputw+1
+    sta CLRPTR+1
+    lda #$f8
+    sta CLRPTR+2
+    lda #$0f
+    sta CLRPTR+3
+
+    rts
+
+
+//-----------------------------
+preserve_colour_data_behind_box:
+//-----------------------------
+//  ' preserve screen + colour data behind box
+//  ' save to $4,4000
+//  loc = $44000
+    +set16 FOURPTR, $4000
+    +set16 FOURPTR+2, $0004
+
+//  for ty = box_y% to yy%
+    +copy8 ty, box_y
+--:
+
+//    for tx = box_x% to xx%
+      +copy8 tx, box_x
+
+      jsr prepare_screen_and_clr_pointers
+
+-:
+//      wpoke loc, wpeek($40800 + ty * WIDTH + tx * 2)
+        ldz #$00
+        lda [PTR1],z
+        sta [FOURPTR],z
+        inz
+        lda [PTR1],z
+        sta [FOURPTR],z
+
+//      loc = loc + 2
+        +inc32 FOURPTR
+        +inc32 FOURPTR
+
+//      wpoke loc, wpeek($ff80000 + ty * WIDTH + tx * 2)
+        ldz #$00
+        lda [CLRPTR],z
+        sta [FOURPTR],z
+        inz
+        lda [CLRPTR],z
+        sta [FOURPTR],z
+
+//      loc = loc + 2
+        +inc32 FOURPTR
+        +inc32 FOURPTR
+
+        +inc32 PTR1
+        +inc32 PTR1
+
+        +inc32 CLRPTR
+        +inc32 CLRPTR
+//    next tx
+      +inc8 tx
+      cmp xx
+      bcc -
+      beq -
+//  next ty
+    +inc8 ty
+    cmp yy
+    bcc --
+    beq --
+
+    rts
+
+
+//-----------------
+draw_box_horz_lines:
+//-----------------
+//  for tx = box_x% to xx%
+    +copy8 tx, box_x
+-:
+//    value = $100b
+      +set16 value, $100b
+
+//    ty = box_y% : gosub plot_char
+      +copy8 ty, box_y
+      jsr plot_char
+
+//    value = $100d
+      +set16 value, $100d
+
+//    ty = yy% : gosub plot_char
+      +copy8 ty, yy
+      jsr plot_char
+
+//  next tx
+    +inc8 tx
+    cmp xx
+    bne -
+
+  rts
+
+
+//-----------------
+draw_box_vert_lines:
+//-----------------
+//  for ty = box_y% to yy%
+    +copy8 ty, box_y
+-:
+//    value = $1009
+      +set16 value, $1009
+
+//    tx = box_x% : gosub plot_char
+      +copy8 tx, box_x
+      jsr plot_char
+      
+//    value = $100f
+      +set16 value, $100f
+
+//    tx = xx% : gosub plot_char
+      +copy8 tx, xx
+      jsr plot_char
+
+//  next ty
+    +inc8 ty
+    cmp yy
+    bne -
+
+  rts
+
+
+//--------------
+draw_box_corners:
+//--------------
+//  tx = box_x% : ty = box_y% : value = $1008 : gosub plot_char
+    +copy8 tx, box_x
+    +copy8 ty, box_y
+    +set16 value, $1008
+    jsr plot_char
+
+//  tx = box_x% : ty = yy%    : value = $100a : gosub plot_char
+    +copy8 tx, box_x
+    +copy8 ty, yy
+    +set16 value, $100a
+    jsr plot_char
+
+//  tx = xx%    : ty = box_y% : value = $100e : gosub plot_char
+    +copy8 tx, xx
+    +copy8 ty, box_y
+    +set16 value, $100e
+    jsr plot_char
+
+//  tx = xx%    : ty = yy%    : value = $1010 : gosub plot_char
+    +copy8 tx, xx
+    +copy8 ty, yy
+    +set16 value, $1010
+    jsr plot_char
+    rts
+
+
+//------
+hide_box:
+//------
+//  xx% = box_width% - 1
+    +copy8 xx, box_width
+    +dec8 xx
+//  yy% = box_height% - 1
+    +copy8 yy, box_height
+    +dec8 yy
+
+//  loc = $44000
+    +set16 FOURPTR, $4000
+    +set16 FOURPTR+2, $0004
+
+//  for ty = box_y% to yy%
+    +copy8 ty, box_y
+--:
+
+//    for tx = box_x% to xx%
+      +copy8 tx, box_x
+
+      jsr prepare_screen_and_clr_pointers
+
+-:
+//      wpoke $40800 + ty * WIDTH + tx * 2, wpeek(loc)
+        ldz #$00
+        lda [FOURPTR],z
+        sta [PTR1],z
+        inz
+        lda [FOURPTR],z
+        sta [PTR1],z
+
+//      loc = loc + 2
+        +inc32 FOURPTR
+        +inc32 FOURPTR
+
+//      wpoke $ff80000 + ty * WIDTH + tx * 2, wpeek(loc)
+        ldz #$00
+        lda [FOURPTR],z
+        sta [CLRPTR],z
+        inz
+        lda [FOURPTR],z
+        sta [CLRPTR],z
+
+//      loc = loc + 2
+        +inc32 FOURPTR
+        +inc32 FOURPTR
+
+        +inc32 PTR1
+        +inc32 PTR1
+
+        +inc32 CLRPTR
+        +inc32 CLRPTR
+
+//    next tx
+      +inc8 tx
+      cmp xx
+      bcc -
+      beq -
+
+//  next ty
+    +inc8 ty
+    cmp yy
+    bcc --
+    beq --
+
+//  return
+  rts
+
+
+//------
+draw_box:
+//------
+//  xx% = box_width% - 1
+    +copy8 xx, box_width
+    +dec8 xx
+//  yy% = box_height% - 1
+    +copy8 yy, box_height
+    +dec8 yy
+
+    jsr preserve_colour_data_behind_box
+
+    jsr draw_box_horz_lines
+
+    jsr draw_box_vert_lines
+
+    jsr draw_box_corners
+
+//  value = 32
+    +set16 value, 32
+
+//  for ty = box_y% + 1 to yy% - 1
+    +copy8 ty, box_y
+    +inc8 ty
+--:
+//    for tx = box_x% + 1 to xx% - 1
+    +copy8 tx, box_x
+    +inc8 tx
+-:
+//      gosub plot_char
+        jsr plot_char
+
+//    next tx
+      +inc8 tx
+      cmp xx
+      bcc -
+
+//  next ty
+    +inc8 ty
+    cmp yy
+    bcc --
+
+//  return
+    rts
+
+
+//-------
+plot_char:
+//-------
+    jsr prepare_screen_and_clr_pointers
+
+//  wpoke $40800 + ty * WIDTH + tx * 2, value
+    ldz #$00
+    lda value
+    sta [PTR1],z
+    inz
+    lda value+1
+    sta [PTR1],z
+
+//  wpoke $ff80000 + ty * WIDTH + tx * 2, tclr * 256
+    ldz #$00
+    lda #$00
+    sta [CLRPTR],z
+    inz
+    lda tclr
+    sta [CLRPTR],z
+//  return
+    rts
+
+//-------
+clrscreen:
+//-------
+//  edma OP_FILL, WIDTH * 50, 32, $40800
+  lda #$00
+  sta $d702
+  lda #>dma_screen
+  sta $d701
+  lda #<dma_screen
+  sta $d705
+
+//  edma OP_FILL, WIDTH * 50, 0, $ff80000
+  lda #>dma_clr
+  sta $d701
+  lda #<dma_clr
+  sta $d705
+
+//  ' clear screen
+//  for y = 0 to 49
+    ldy #$00
+--:
+//   for x = 0 to 79
+    ldx #$00
+-:
+//     poke $40800 + y * WIDTH + x * 2 + 1, 0
+    sty tmp
+    +copy8to16 inputw1, tmp
+    +set16 inputw2, WIDTH
+    +multiply16 inputw1, inputw2, inputw1
+
+    txa
+    clc
+    rol
+    sta tmp
+    +copy8to16 inputw2, tmp
+
+    +add16 inputw1, inputw2, inputw1
+
+    +set16 inputw2, $0800
+    +add16 inputw1, inputw2, FOURPTR
+    +set16 FOURPTR+2, $0004
+
+    ldz #$01
+    lda #$00
+    sta [FOURPTR],z
+
+//   next x
+  inx
+  cpx #80
+  lbne -
+
+//  next y
+  iny
+  cpy #50
+  lbne --
+
+//  return
+  rts
 
 
 //-------
@@ -1156,3 +1598,15 @@ stringlen: !byte $00
 chr: !byte $00
 tmp: !byte $00
 kptr: !byte $00
+
+// draw_box
+xx: !byte $00
+loc: !word $00
+
+// plot_char
+value: !byte $00
+
+dma_screen:
++edma OP_FILL, WIDTH * 50, 32, $00, $0800, $04, $00
+dma_clr:
++edma OP_FILL, WIDTH * 50, 0, $00, $0000, $08, $ff

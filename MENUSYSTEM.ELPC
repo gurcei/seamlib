@@ -74,8 +74,21 @@ trap runstop_trapper
 '--------
 .draw_box
 '--------
+  bank 0
+  poke $7e10, box_x%
+  poke $7e11, box_y%
+  poke $7e12, box_width%
+  poke $7e13, box_height%
+^^  sys to $7f09, i0
+  bank 128
+  return
+
+  ' TODO: remove when assembly port works
+   
   xx% = box_width% - 1
   yy% = box_height% - 1
+
+  tx = 0 : ty = 0: a$ = "xx ="+str$(xx%):gosub draw_text
 
   ' preserve screen + colour data behind box
   ' save to $4,4000
@@ -122,6 +135,20 @@ trap runstop_trapper
 '--------
 .hide_box
 '--------
+  bank 0
+  poke $7e10, box_x%
+  poke $7e11, box_y%
+  poke $7e12, box_width%
+  poke $7e13, box_height%
+^^  sys to $7f0c, i0
+  bank 128
+  return
+
+  ' TODO: remove once assembly port working
+
+  xx% = box_width% - 1
+  yy% = box_height% - 1
+
   loc = $44000
   for ty = box_y% to yy%
     for tx = box_x% to xx%
@@ -237,11 +264,11 @@ trap runstop_trapper
 .draw_text
 '---------
   bank 0
-  poke $160d, tx
-  poke $160e, ty
-  poke $160f, tclr
+  poke $7e0d, tx
+  poke $7e0e, ty
+  poke $7e0f, tclr
 
-  sys $1613, 0, aptr_lo, aptr_hi
+  sys $7f03, 0, aptr_lo, aptr_hi
 
   bank 128
   return
@@ -250,6 +277,11 @@ trap runstop_trapper
 '---------
 .clrscreen
 '---------
+  bank 0
+^^  sys to $7f06, i0
+  bank 128
+  return
+
   edma OP_FILL, WIDTH * 50, 32, $40800
   edma OP_FILL, WIDTH * 50, 0, $ff80000
 
