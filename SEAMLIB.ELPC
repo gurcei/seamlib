@@ -101,13 +101,15 @@ trap runstop_trapper
   key off
 
   ' prepare vars for assembly
-  wpoke $1600, pointer(spr_ox%(0))
-  wpoke $1602, pointer(spr_oy%(0))
-  wpoke $1604, pointer(spr_chr_width%(0))
-  wpoke $1606, pointer(spr_chr_height%(0))
-  wpoke $1608, pointer(spr_char_idx%(0))
-  wpoke $160a, pointer(stage_x_offs%(0))
-  poke $160c, spr_count
+  bank 0
+  wpoke $7e00, pointer(spr_ox%(0))
+  wpoke $7e02, pointer(spr_oy%(0))
+  wpoke $7e04, pointer(spr_chr_width%(0))
+  wpoke $7e06, pointer(spr_chr_height%(0))
+  wpoke $7e08, pointer(spr_char_idx%(0))
+  wpoke $7e0a, pointer(stage_x_offs%(0))
+  poke $7e0c, spr_count
+  bank 128
 
   ' prepare sprite details
   spr_chr_width%(S_CARPET) = 3
@@ -376,7 +378,7 @@ trap runstop_trapper
   vsync 250
   border 3
 bank 0
-^^  sys to $1610, i1
+^^  sys to $7f00, i0
   bank 128
   return
 
@@ -394,13 +396,13 @@ bank 0
 .draw_object
 '-----------
 '  bank 0
-'  wpoke $1600, spr_ox%(fidx)
-'  wpoke $1602, spr_oy%(fidx)
-'  poke $1604, chr_width%(fidx)
-'  poke $1605, chr_height%(fidx)
-'  wpoke $1606, char_idx%(fidx)
-'  wpoke $1608, stage_x_offs%(fidx)
-'  poke $160a, frame_count%
+'  wpoke $7e00, spr_ox%(fidx)
+'  wpoke $7e02, spr_oy%(fidx)
+'  poke $7e04, chr_width%(fidx)
+'  poke $7e05, chr_height%(fidx)
+'  wpoke $7e06, char_idx%(fidx)
+'  wpoke $7e08, stage_x_offs%(fidx)
+'  poke $7e0a, frame_count%
 '  bank 128 : border 7 : bank 0
 
   objx = spr_ox%(sidx)
