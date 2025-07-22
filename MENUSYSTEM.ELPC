@@ -97,14 +97,6 @@ trap runstop_trapper
   return
 
 
-'---------
-.plot_char
-'---------
-  wpoke $40800 + ty * WIDTH + tx * 2, value
-  wpoke $ff80000 + ty * WIDTH + tx * 2, tclr * 256
-  return
-  
-
 '-------------
 .print_garbage
 '-------------
@@ -215,18 +207,5 @@ trap runstop_trapper
   bank 0
 ^^  sys to $7f06, i0
   bank 128
-  return
-
-  edma OP_FILL, WIDTH * 50, 32, $40800
-  edma OP_FILL, WIDTH * 50, 0, $ff80000
-
-  ' clear screen
-  for y = 0 to 49
-   for x = 0 to 79
-     poke $40800 + y * WIDTH + x * 2 + 1, 0
-   next x
-  next y
-
-
   return
 ÿ

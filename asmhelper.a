@@ -395,6 +395,9 @@ pane_y: !byte $00                // 7E11
 pane_width: !byte $00            // 7E12
 pane_height: !byte $00           // 7E13
 
+// plot_char
+value: !word $00                 // 7E14
+
 
 // ROUTINES
 // ========
@@ -404,6 +407,7 @@ pane_height: !byte $00           // 7E13
   jmp clrscreen       // 7F06
   jmp draw_pane        // 7F09
   jmp hide_pane        // 7F0C
+  jmp plot_char       // 7F0F
 
 
 //-----------------------------
@@ -1610,9 +1614,6 @@ kptr: !byte $00
 // draw_pane
 xx: !byte $00
 loc: !word $00
-
-// plot_char
-value: !byte $00
 
 dma_screen:
 +edma OP_FILL, WIDTH * 50, 32, $00, $0800, $04, $00
