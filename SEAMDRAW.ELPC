@@ -24,6 +24,8 @@
 #declare rect_state, rect_x1%, rect_y1%, rect_x2%, rect_y2%, dr
 #declare aptr_lo, aptr_hi
 
+#declare pane_x%, pane_y%, pane_width%, pane_height%, pane_title%
+
 
 '-------
 .defines
@@ -132,16 +134,7 @@ trap runstop_trapper
 
 
     ' mega-q = exit
-    if a$ = KEY_MEGA_Q then begin
-      tclr = 0 : tx = 30 : ty = 3 : a$ = "quit: are you sure? (y/n)"
-      gosub draw_text
-
-      get key a$
-      if a$="y" then key on : goto cleanup : else begin
-        tclr = 0 : tx = 30 : ty = 3 : a$ = "                         "
-        gosub draw_text
-      bend
-    bend
+    if a$ = KEY_MEGA_Q then gosub handle_quit
 
     if a$ = KEY_F1 then gosub load_data
     if a$ = KEY_F3 then gosub save_data
@@ -167,6 +160,61 @@ trap runstop_trapper
 
     if a$ = KEY_MEGA_R then gosub do_rectangle
   loop
+  return
+
+
+'-----------
+.handle_quit
+'-----------
+  tclr = 0 : a$ = "quit: are you sure? (y/n)"
+  pane_width% = len(a$) + 4
+  pane_height% = 5
+  gosub show_centred_pane
+
+  get key a$
+  if a$="y" then key on : goto cleanup
+  
+  gosub hide_pane
+  return
+
+
+'-----------------
+.show_centred_pane
+'-----------------
+  pane_x% = (80 - pane_width%) / 2
+  pane_y% = (50 - pane_height%) / 2
+
+  gosub draw_pane
+
+  tclr = 0 : tx = pane_x% + 2 : ty = pane_y% + 2
+  gosub draw_text
+
+  return
+
+
+'---------
+.draw_pane
+'---------
+  bank 0
+  poke $7e10, pane_x%
+  poke $7e11, pane_y%
+  poke $7e12, pane_width%
+  poke $7e13, pane_height%
+^^  sys to $7f09, i0
+  bank 128
+  return
+
+
+'--------
+.hide_pane
+'--------
+  bank 0
+  poke $7e10, pane_x%
+  poke $7e11, pane_y%
+  poke $7e12, pane_width%
+  poke $7e13, pane_height%
+^^  sys to $7f0c, i0
+  bank 128
   return
 
 
@@ -244,19 +292,9 @@ trap runstop_trapper
   tmp = frame_count - 1
   new_char_idx = char_idx(tmp) + chr_width(tmp) * chr_height(tmp)
 
-  tx = 50 : ty = 3 : a$ = "new_char_idx: " + hex$(new_char_idx)
-  gosub draw_text
-
   tmp = chr_width(fidx) * chr_height(fidx) * $40 - 1
 
-  tx = 50 : ty = 4 : a$ = "tmp-num-pixels: " + str$(tmp)
-  gosub draw_text
-
   tmp2 = char_idx(fidx) * $40
-
-  tx = 50 : ty = 5 : a$ = "tmp2-old-pixel-data@: " + hex$(tmp2)
-  gosub draw_text
-  get key a$
 
   for k = 0 to tmp
     poke new_char_idx * $40 + k, peek(tmp2 + k)
@@ -285,8 +323,10 @@ trap runstop_trapper
 '------------
 .prompt_clear
 '------------
-  tclr = 0 : tx = 30 : ty = 3 : a$ = "clear: are you sure? (y/n)"
-  gosub draw_text
+  tclr = 0 : a$ = "clear: are you sure? (y/n)"
+  pane_width% = len(a$) + 4
+  pane_height% = 5
+  gosub show_centred_pane
 
   get key a$
   if a$="y" then begin
@@ -295,8 +335,7 @@ trap runstop_trapper
     gosub draw_frame_contents
   bend
   
-  tclr = 0 : tx = 30 : ty = 3 : a$ = "                            "
-  gosub draw_text
+  gosub hide_pane
 
   return
 
@@ -304,24 +343,34 @@ trap runstop_trapper
 '----------------
 .prompt_add_frame
 '----------------
-  tclr = 0 : tx = 30 : ty = 3 : a$ = "add frame:"
+  pane_width% = 30
+  pane_height% = 7
+  gosub show_centred_pane
+
+  tclr = 0 : tx = pane_x% + 2 : ty = pane_y% + 2
+  a$ = "add frame:"
   gosub draw_text
 
-  ty = 4 : a$ = "  enter char-width: "
+  ty = ty + 1
+  a$ = "  enter char-width: "
   gosub draw_text
 
-  tx = 50 : numeric_flag = 1 : gosub seam_input
-  if ret = 0 then goto afbailout
+  tx = pane_x% + 23 : numeric_flag = 1 : gosub seam_input
+  if ret = 0 then gosub hide_pane : return
 
   tmp_chr_width = val(ln$)
 
-  ty = 5 : tx = 30 : a$ = "  enter char-height: "
+  ty = ty + 1
+  tx = pane_x% + 2
+  a$ = "  enter char-height: "
   gosub draw_text
 
-  tx = 51 : numeric_flag = 1 : gosub seam_input
-  if ret = 0 then goto afbailout
+  tx = pane_x% + 23 : numeric_flag = 1 : gosub seam_input
+  if ret = 0 then gosub hide_pane : return
 
   tmp_chr_height = val(ln$)
+
+  gosub hide_pane
 
 .add_frame
   ' we got both params from user, now make it
@@ -337,15 +386,6 @@ trap runstop_trapper
   bend
 
   gosub redraw_screen
-
-.afbailout
-  ' cleanup prompts on screen
-  tx = 30 : ty = 3 : a$ = "                         "
-  gosub draw_text
-  ty = 4
-  gosub draw_text
-  ty = 5
-  gosub draw_text
   
   return
 
@@ -353,14 +393,20 @@ trap runstop_trapper
 '---------
 .load_data
 '---------
-  tclr = 0 : tx = 30 : ty = 3 : a$ = "load name: "
+  pane_width% = 30
+  pane_height% = 5
+  gosub show_centred_pane
+
+  tclr = 0 : tx = pane_x% + 2 : ty = pane_y% + 2 : a$ = "load name: "
+
   gosub draw_text
 
-  tclr = 0 : tx = 41 : ty = 3
+  tclr = 0 : tx = pane_x% + 13
   gosub seam_input
 
-  tx = 30 : a$ = "                               "
-  gosub draw_text
+  gosub hide_pane
+
+  if ret = 0 then return
 
   char_count = 0
 
@@ -413,14 +459,19 @@ trap runstop_trapper
 '---------
 .save_data
 '---------
-  tclr = 0 : tx = 30 : ty = 3 : a$ = "save name: "
+  pane_width% = 30
+  pane_height% = 5
+  gosub show_centred_pane
+
+  tclr = 0 : tx = pane_x% + 2 : ty = pane_y% + 2 : a$ = "save name: "
   gosub draw_text
 
-  tclr = 0 : tx = 41 : ty = 3
+  tclr = 0 : tx = pane_x% + 13
   gosub seam_input
 
-  tx = 30 : a$ = "                               "
-  gosub draw_text
+  gosub hide_pane
+
+  if ret = 0 then return
 
   char_count = 0
 

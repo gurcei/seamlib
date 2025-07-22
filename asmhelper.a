@@ -47,6 +47,13 @@ OP_FILL = 3
 
 // MACROS
 // ======
+!macro add8v8 .var1, .var2 {
+  clc
+  lda .var1
+  adc .var2
+  sta .var1
+}
+
 !macro inc8 .var8 {
   lda .var8
   clc
@@ -605,12 +612,15 @@ draw_pane_corners:
 //------
 hide_pane:
 //------
-//  xx% = pane_width% - 1
+//  xx% = pane_x + pane_width% - 1
     +copy8 xx, pane_width
     +dec8 xx
-//  yy% = pane_height% - 1
+    +add8v8 xx, pane_x
+
+//  yy% = pane_y + pane_height% - 1
     +copy8 yy, pane_height
     +dec8 yy
+    +add8v8 yy, pane_y
 
 //  loc = $44000
     +set16 FOURPTR, $4000
@@ -705,12 +715,15 @@ clear_pane_insides:
 //------
 draw_pane:
 //------
-//  xx% = pane_width% - 1
+//  xx% = pane_x + pane_width% - 1
     +copy8 xx, pane_width
     +dec8 xx
-//  yy% = pane_height% - 1
+    +add8v8 xx, pane_x
+
+//  yy% = pane_y + pane_height% - 1
     +copy8 yy, pane_height
     +dec8 yy
+    +add8v8 yy, pane_y
 
     jsr preserve_colour_data_behind_pane
 

@@ -10,6 +10,9 @@ tod81:
 	c1541 -attach /c/Users/phuon/AppData/Roaming/xemu-lgb/mega65/hdos/112.D81 -delete asmhelper -write asmhelper.prg asmhelper
 	c1541 -attach /c/Users/phuon/AppData/Roaming/xemu-lgb/mega65/hdos/112.D81 -delete chars.bin -write chars.bin -delete asmhelper -write asmhelper.prg asmhelper
 
+fromd81:
+	c1541 -attach /c/Users/phuon/AppData/Roaming/xemu-lgb/mega65/hdos/112.D81 -read moana3.bin,s
+
 xemu:
 	/c/projs/xemu/build/bin/xmega65.native -rom /c/projs/mega65-rom/newrom.bin -hdosvirt -uartmon :4510 -8 /C/Users/phuon/AppData/Roaming/xemu-lgb/mega65/hdos/112.D81 &> /dev/null &
 

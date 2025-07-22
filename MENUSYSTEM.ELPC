@@ -60,8 +60,8 @@ trap runstop_trapper
 
   pane_x% = 10
   pane_y% = 10
-  pane_width% = 30
-  pane_height% = 40
+  pane_width% = 50
+  pane_height% = 3
   pane_title$ = "test prompt"
 
   gosub draw_pane
