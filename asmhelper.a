@@ -389,11 +389,11 @@ tx: !byte $00                   // 7E0D
 ty: !byte $00                   // 7E0E
 tclr: !byte $00                 // 7E0F
 
-// draw-box vars
-box_x: !byte $00                // 7E10
-box_y: !byte $00                // 7E11
-box_width: !byte $00            // 7E12
-box_height: !byte $00           // 7E13
+// draw-pane vars
+pane_x: !byte $00                // 7E10
+pane_y: !byte $00                // 7E11
+pane_width: !byte $00            // 7E12
+pane_height: !byte $00           // 7E13
 
 
 // ROUTINES
@@ -402,8 +402,8 @@ box_height: !byte $00           // 7E13
   jmp draw_objects    // 7F00
   jmp draw_text       // 7F03
   jmp clrscreen       // 7F06
-  jmp draw_box        // 7F09
-  jmp hide_box        // 7F0C
+  jmp draw_pane        // 7F09
+  jmp hide_pane        // 7F0C
 
 
 //-----------------------------
@@ -452,20 +452,20 @@ prepare_screen_and_clr_pointers:
 
 
 //-----------------------------
-preserve_colour_data_behind_box:
+preserve_colour_data_behind_pane:
 //-----------------------------
-//  ' preserve screen + colour data behind box
+//  ' preserve screen + colour data behind pane
 //  ' save to $4,4000
 //  loc = $44000
     +set16 FOURPTR, $4000
     +set16 FOURPTR+2, $0004
 
-//  for ty = box_y% to yy%
-    +copy8 ty, box_y
+//  for ty = pane_y% to yy%
+    +copy8 ty, pane_y
 --:
 
-//    for tx = box_x% to xx%
-      +copy8 tx, box_x
+//    for tx = pane_x% to xx%
+      +copy8 tx, pane_x
 
       jsr prepare_screen_and_clr_pointers
 
@@ -514,16 +514,16 @@ preserve_colour_data_behind_box:
 
 
 //-----------------
-draw_box_horz_lines:
+draw_pane_horz_lines:
 //-----------------
-//  for tx = box_x% to xx%
-    +copy8 tx, box_x
+//  for tx = pane_x% to xx%
+    +copy8 tx, pane_x
 -:
 //    value = $100b
       +set16 value, $100b
 
-//    ty = box_y% : gosub plot_char
-      +copy8 ty, box_y
+//    ty = pane_y% : gosub plot_char
+      +copy8 ty, pane_y
       jsr plot_char
 
 //    value = $100d
@@ -542,16 +542,16 @@ draw_box_horz_lines:
 
 
 //-----------------
-draw_box_vert_lines:
+draw_pane_vert_lines:
 //-----------------
-//  for ty = box_y% to yy%
-    +copy8 ty, box_y
+//  for ty = pane_y% to yy%
+    +copy8 ty, pane_y
 -:
 //    value = $1009
       +set16 value, $1009
 
-//    tx = box_x% : gosub plot_char
-      +copy8 tx, box_x
+//    tx = pane_x% : gosub plot_char
+      +copy8 tx, pane_x
       jsr plot_char
       
 //    value = $100f
@@ -570,23 +570,23 @@ draw_box_vert_lines:
 
 
 //--------------
-draw_box_corners:
+draw_pane_corners:
 //--------------
-//  tx = box_x% : ty = box_y% : value = $1008 : gosub plot_char
-    +copy8 tx, box_x
-    +copy8 ty, box_y
+//  tx = pane_x% : ty = pane_y% : value = $1008 : gosub plot_char
+    +copy8 tx, pane_x
+    +copy8 ty, pane_y
     +set16 value, $1008
     jsr plot_char
 
-//  tx = box_x% : ty = yy%    : value = $100a : gosub plot_char
-    +copy8 tx, box_x
+//  tx = pane_x% : ty = yy%    : value = $100a : gosub plot_char
+    +copy8 tx, pane_x
     +copy8 ty, yy
     +set16 value, $100a
     jsr plot_char
 
-//  tx = xx%    : ty = box_y% : value = $100e : gosub plot_char
+//  tx = xx%    : ty = pane_y% : value = $100e : gosub plot_char
     +copy8 tx, xx
-    +copy8 ty, box_y
+    +copy8 ty, pane_y
     +set16 value, $100e
     jsr plot_char
 
@@ -599,25 +599,25 @@ draw_box_corners:
 
 
 //------
-hide_box:
+hide_pane:
 //------
-//  xx% = box_width% - 1
-    +copy8 xx, box_width
+//  xx% = pane_width% - 1
+    +copy8 xx, pane_width
     +dec8 xx
-//  yy% = box_height% - 1
-    +copy8 yy, box_height
+//  yy% = pane_height% - 1
+    +copy8 yy, pane_height
     +dec8 yy
 
 //  loc = $44000
     +set16 FOURPTR, $4000
     +set16 FOURPTR+2, $0004
 
-//  for ty = box_y% to yy%
-    +copy8 ty, box_y
+//  for ty = pane_y% to yy%
+    +copy8 ty, pane_y
 --:
 
-//    for tx = box_x% to xx%
-      +copy8 tx, box_x
+//    for tx = pane_x% to xx%
+      +copy8 tx, pane_x
 
       jsr prepare_screen_and_clr_pointers
 
@@ -668,33 +668,18 @@ hide_box:
   rts
 
 
-//------
-draw_box:
-//------
-//  xx% = box_width% - 1
-    +copy8 xx, box_width
-    +dec8 xx
-//  yy% = box_height% - 1
-    +copy8 yy, box_height
-    +dec8 yy
-
-    jsr preserve_colour_data_behind_box
-
-    jsr draw_box_horz_lines
-
-    jsr draw_box_vert_lines
-
-    jsr draw_box_corners
-
+//----------------
+clear_pane_insides:
+//----------------
 //  value = 32
     +set16 value, 32
 
-//  for ty = box_y% + 1 to yy% - 1
-    +copy8 ty, box_y
+//  for ty = pane_y% + 1 to yy% - 1
+    +copy8 ty, pane_y
     +inc8 ty
 --:
-//    for tx = box_x% + 1 to xx% - 1
-    +copy8 tx, box_x
+//    for tx = pane_x% + 1 to xx% - 1
+    +copy8 tx, pane_x
     +inc8 tx
 -:
 //      gosub plot_char
@@ -709,6 +694,29 @@ draw_box:
     +inc8 ty
     cmp yy
     bcc --
+
+    rts
+
+
+//------
+draw_pane:
+//------
+//  xx% = pane_width% - 1
+    +copy8 xx, pane_width
+    +dec8 xx
+//  yy% = pane_height% - 1
+    +copy8 yy, pane_height
+    +dec8 yy
+
+    jsr preserve_colour_data_behind_pane
+
+    jsr draw_pane_horz_lines
+
+    jsr draw_pane_vert_lines
+
+    jsr draw_pane_corners
+
+    jsr clear_pane_insides
 
 //  return
     rts
@@ -1599,7 +1607,7 @@ chr: !byte $00
 tmp: !byte $00
 kptr: !byte $00
 
-// draw_box
+// draw_pane
 xx: !byte $00
 loc: !word $00
 

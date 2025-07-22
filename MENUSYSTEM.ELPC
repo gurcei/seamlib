@@ -6,7 +6,7 @@
 #declare bkp_d054&, bkp_d058&, bkp_d059&, bkp_d05e&
 #declare a$, k, tclr, tx, ty, my_err$, idx, rev_flag, chr, kk
 #declare x, y, xx%, yy%, value
-#declare box_x%, box_y%, box_width%, box_height%, box_title$
+#declare pane_x%, pane_y%, pane_width%, pane_height%, pane_title$
 #declare loc
 #declare aptr_lo, aptr_hi
 
@@ -58,108 +58,43 @@ trap runstop_trapper
 
   gosub print_garbage
 
-  box_x% = 10
-  box_y% = 10
-  box_width% = 30
-  box_height% = 40
-  box_title$ = "test prompt"
+  pane_x% = 10
+  pane_y% = 10
+  pane_width% = 30
+  pane_height% = 40
+  pane_title$ = "test prompt"
 
-  gosub draw_box
+  gosub draw_pane
 
   gosub user_input
 
   end
 
 
-'--------
-.draw_box
-'--------
+'---------
+.draw_pane
+'---------
   bank 0
-  poke $7e10, box_x%
-  poke $7e11, box_y%
-  poke $7e12, box_width%
-  poke $7e13, box_height%
+  poke $7e10, pane_x%
+  poke $7e11, pane_y%
+  poke $7e12, pane_width%
+  poke $7e13, pane_height%
 ^^  sys to $7f09, i0
   bank 128
   return
 
-  ' TODO: remove when assembly port works
-   
-  xx% = box_width% - 1
-  yy% = box_height% - 1
-
-  tx = 0 : ty = 0: a$ = "xx ="+str$(xx%):gosub draw_text
-
-  ' preserve screen + colour data behind box
-  ' save to $4,4000
-  loc = $44000
-  for ty = box_y% to yy%
-    for tx = box_x% to xx%
-      wpoke loc, wpeek($40800 + ty * WIDTH + tx * 2)
-      loc = loc + 2
-      wpoke loc, wpeek($ff80000 + ty * WIDTH + tx * 2)
-      loc = loc + 2
-    next tx
-  next ty
-
-
-  for tx = box_x% to xx%
-    value = $100b
-    ty = box_y% : gosub plot_char
-    value = $100d
-    ty = yy% : gosub plot_char
-  next tx
-
-  for ty = box_y% to yy%
-    value = $1009
-    tx = box_x% : gosub plot_char
-    value = $100f
-    tx = xx% : gosub plot_char
-  next ty
-
-  tx = box_x% : ty = box_y% : value = $1008 : gosub plot_char
-  tx = box_x% : ty = yy%    : value = $100a : gosub plot_char
-  tx = xx%    : ty = box_y% : value = $100e : gosub plot_char
-  tx = xx%    : ty = yy%    : value = $1010 : gosub plot_char
-
-  value = 32
-  for ty = box_y% + 1 to yy% - 1
-    for tx = box_x% + 1 to xx% - 1
-      gosub plot_char
-    next tx
-  next ty
-    
-  return
-
 
 '--------
-.hide_box
+.hide_pane
 '--------
   bank 0
-  poke $7e10, box_x%
-  poke $7e11, box_y%
-  poke $7e12, box_width%
-  poke $7e13, box_height%
+  poke $7e10, pane_x%
+  poke $7e11, pane_y%
+  poke $7e12, pane_width%
+  poke $7e13, pane_height%
 ^^  sys to $7f0c, i0
   bank 128
   return
-
-  ' TODO: remove once assembly port working
-
-  xx% = box_width% - 1
-  yy% = box_height% - 1
-
-  loc = $44000
-  for ty = box_y% to yy%
-    for tx = box_x% to xx%
-      wpoke $40800 + ty * WIDTH + tx * 2, wpeek(loc)
-      loc = loc + 2
-      wpoke $ff80000 + ty * WIDTH + tx * 2, wpeek(loc)
-      loc = loc + 2
-    next tx
-  next ty
-  return
-
 
 
 '---------
@@ -215,7 +150,7 @@ trap runstop_trapper
     poke $40000 + k, $ff
   next k
 
-  ' $1001 = box char
+  ' $1001 = pane char
   for k = 0 to 63
     if int(k / 8) = 0 or int(k / 8) = 7 then poke $40040 + k, $ff:goto nxt
     if mod(k, 8) = 0 or mod(k, 8) = 7 then poke $40040 + k, $ff:goto nxt
@@ -253,7 +188,7 @@ trap runstop_trapper
 
     if a$ = KEY_MEGA_Q then goto cleanup
 
-    gosub hide_box
+    gosub hide_pane
 
   loop
 
