@@ -728,19 +728,12 @@ trap runstop_trapper
   tclr = 0 : tx = 0 : ty = 1 : a$ = "frame#" + mid$(str$(fidx), 2)
   gosub draw_text
 
-  for xx = 0 to chr_width(fidx) - 1
-    for yy = 0 to chr_height(fidx) - 1
-      tx = xx * 8
-      ty = yy * 8 + 2
-      for y = 0 to 7
-        for x = 0 to 7
-          tclr = peek(char_idx(fidx) * $40 + $40 * chr_height(fidx) * xx + $40 * yy + y * 8 + x)
-          if tclr = 0 then tclr = 12
-          poke $ff80000 + (ty + y) * WIDTH + (tx + x) * 2 + 1, tclr
-        next x
-      next y
-    next yy
-  next xx
+  bank 0
+  poke $7e16, chr_width(fidx)
+  poke $7e17, chr_height(fidx)
+  wpoke $7e18, char_idx(fidx)
+  sys $7f15
+  bank 128
   return
 
 

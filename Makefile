@@ -9,6 +9,7 @@ FORCE: ;
 tod81:
 	c1541 -attach /c/Users/phuon/AppData/Roaming/xemu-lgb/mega65/hdos/112.D81 -delete asmhelper -write asmhelper.prg asmhelper
 	c1541 -attach /c/Users/phuon/AppData/Roaming/xemu-lgb/mega65/hdos/112.D81 -delete chars.bin -write chars.bin -delete asmhelper -write asmhelper.prg asmhelper
+	c1541 -attach /c/Users/phuon/AppData/Roaming/xemu-lgb/mega65/hdos/112.D81 -delete chars.bin -write chars.bin -delete moana3.bin -write moana3.bin
 
 fromd81:
 	c1541 -attach /c/Users/phuon/AppData/Roaming/xemu-lgb/mega65/hdos/112.D81 -read moana3.bin,s

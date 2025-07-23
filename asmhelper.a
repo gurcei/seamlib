@@ -47,11 +47,64 @@ OP_FILL = 3
 
 // MACROS
 // ======
+!macro cmp8v8 .var1, .var2 {
+  lda .var1
+  cmp .var2
+}
+
+!macro cmp8 .var, .val {
+  lda .var
+  cmp #.val
+}
+
+!macro lsl8 .var, .cnt {
+  phx
+  ldx #.cnt
+  lda .var
+-:
+  cpx #$00
+  beq +
+
+  clc
+  rol
+
+  dex
+  bra -
+
++:
+  sta .var
+  plx
+}
+
+!macro lsla .cnt {
+  phx
+  ldx #.cnt
+-:
+  cpx #$00
+  beq +
+
+  clc
+  rol
+
+  dex
+  bra -
+
++:
+  plx
+}
+
 !macro add8v8 .var1, .var2 {
   clc
   lda .var1
   adc .var2
   sta .var1
+}
+
+!macro add8 .var, .val {
+  clc
+  lda .var
+  adc #.val
+  sta .var
 }
 
 !macro inc8 .var8 {
@@ -124,6 +177,11 @@ OP_FILL = 3
 	sta .dest+1
 }
 
+!macro set8 .dest, .val {
+	lda #.val
+	sta .dest
+}
+
 !macro lsr16 .loc {
 	clc
 	lda .loc+1
@@ -132,6 +190,16 @@ OP_FILL = 3
 	lda .loc
 	ror
 	sta .loc
+}
+
+!macro lsl16 .loc {
+  clc
+  lda .loc
+  rol
+  sta .loc
+  lda .loc+1
+  rol
+  sta .loc+1
 }
 
 !macro lsr16_by .loc, .cnt {
@@ -405,6 +473,10 @@ pane_height: !byte $00           // 7E13
 // plot_char
 value: !word $00                 // 7E14
 
+// draw_frame_contents
+chr_width: !byte $00            // 7E16
+chr_height: !byte $00           // 7E17
+char_idx: !word $00             // 7E18
 
 // ROUTINES
 // ========
@@ -415,7 +487,126 @@ value: !word $00                 // 7E14
   jmp draw_pane        // 7F09
   jmp hide_pane        // 7F0C
   jmp plot_char       // 7F0F
-  jsr clear_pane_insides   // 7F12
+  jmp clear_pane_insides   // 7F12
+  jmp draw_frame_contents  // 7F15
+
+
+//-----------------
+draw_frame_contents:
+//-----------------
+
+//  for xx = 0 to chr_width(fidx) - 1
+    +set8 xx, $00
+----:
+//    for yy = 0 to chr_height(fidx) - 1
+      +set8 yy, $00
+---: 
+//      tx = xx * 8
+        +copy8 tx, xx
+        +lsl8 tx, 3
+
+//      ty = yy * 8 + 2
+        +copy8 ty, yy
+        +lsl8 ty, 3
+        +add8 ty, 2
+
+//      for y = 0 to 7
+        ldy #$00
+--:
+//        for x = 0 to 7
+          ldx #$00
+-:
+//          tclr = peek(char_idx(fidx) * $40 + $40 * chr_height(fidx) * xx + $40 * yy + y * 8 + x)
+            // outputw = char_idx * $40
+            +copy16 inputw1, char_idx
+            +set16 inputw2, $40
+            +multiply16 inputw1, inputw2, outputw
+
+            // inputw = $40 * chr_height * xx
+            +copy8to16 inputw1, chr_height
+            +multiply16 inputw1, inputw2, inputw1
+            +copy8to16 inputw2, xx
+            +multiply16 inputw1, inputw2, inputw1
+
+            // outputw += intputw1
+            +add16 inputw1, outputw, outputw
+
+            // inputw1 = $40 * yy
+            +copy8to16 inputw1, yy
+            +set16 inputw2, $40
+            +multiply16 inputw1, inputw2, inputw1
+
+            // outputw += intputw1
+            +add16 inputw1, outputw, outputw
+
+            // outputw += y * 8
+            tya
+            +lsla 3
+            sta inputw1
+            +set8 inputw1+1, 0
+            +add16 outputw, inputw1, outputw
+
+            // outputw += x
+            stx inputw1
+            +set8 inputw1+1, 0
+            +add16 outputw, inputw1, outputw
+
+            // tclr = peek(outputw)
+            +copy16 FOURPTR, outputw
+            +set16 FOURPTR+2, $0005
+            ldz #$00
+            lda [FOURPTR],z
+            sta tclr
+
+//          if tclr = 0 then tclr = 12
+            +cmp8 tclr, 0
+            bne +
+              +set8 tclr, 12
++:
+//          poke $ff80000 + (ty + y) * WIDTH + (tx + x) * 2 + 1, tclr
+            tya
+            clc
+            adc ty
+            sta inputw1
+            +set8 inputw1+1, $00
+            +set16 inputw2, WIDTH
+            +multiply16 inputw1, inputw2, outputw
+
+            txa
+            clc
+            adc tx
+            sta inputw1
+            +lsl16 inputw1
+            +add16 inputw1, outputw, CLRPTR
+            +set16 CLRPTR+2, $0ff8
+            +inc32 CLRPTR
+
+            ldz #$00
+            lda tclr
+            sta [CLRPTR],z
+
+//        next x
+          inx
+          cpx #$08
+          lbne -
+
+//      next y
+        iny
+        cpy #$08
+        lbne --
+
+//    next yy
+      +inc8 yy
+      +cmp8v8 yy, chr_height
+      lbne ---
+
+//  next xx
+    +inc8 xx
+    +cmp8v8 xx, chr_width
+    lbne ----
+
+//  return
+    rts
 
 
 //-----------------------------
@@ -1612,9 +1803,6 @@ sidx: !byte $00
 
 objx: !word $00
 objy: !word $00
-chr_width: !byte $00
-chr_height: !byte $00
-char_idx: !word $00  // aka. char_idx
 stage_x_offs: !word $00
 array_oldyy: !fill 100, $80
 
