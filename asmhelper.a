@@ -415,6 +415,7 @@ value: !word $00                 // 7E14
   jmp draw_pane        // 7F09
   jmp hide_pane        // 7F0C
   jmp plot_char       // 7F0F
+  jsr clear_pane_insides   // 7F12
 
 
 //-----------------------------

@@ -15,7 +15,7 @@ DONE- select 'add' new frame
 stretch goals
 -------------
 - line tool
-- box tool
+DONE- box tool
 - pencil tool
 - fill tool
 - circle tool

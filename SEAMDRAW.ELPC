@@ -25,6 +25,7 @@
 #declare aptr_lo, aptr_hi
 
 #declare pane_x%, pane_y%, pane_width%, pane_height%, pane_title%
+#declare sel_idx%, state
 
 
 '-------
@@ -62,6 +63,10 @@
 #define OP_MIX  = 1
 #define OP_SWAP = 2
 #define OP_FILL = 3
+
+#define STATE_DEFAULT = 0
+#define STATE_BOUNDING_BOX = 1
+#define STATE_BOUNDING_BOX2 = 2
 
 
 trap runstop_trapper
@@ -111,56 +116,95 @@ trap runstop_trapper
     if a$ = KEY_UP and cy > 0 then cy = cy - 1
     if a$ = KEY_DOWN and cy < (chr_height(fidx) * 8 - 1) then cy = cy + 1
 
-    for k = 0 to 15
-      if a$ = clr_key$(k) then begin
-        sel_clr = slice * 16 + k
-        poke $ff80000 + (cy + 2) * WIDTH + cx * 2 + 1, sel_clr
-        x = mod(cx, 8)
-        y = mod(cy, 8)
-        xx = int(cx / 8)
-        yy = int(cy / 8)
-        poke char_idx(fidx) * $40 + $40 * chr_height(fidx) * xx + $40 * yy + y * 8 + x, sel_clr
-      bend
-    next k
+    if state = STATE_DEFAULT then begin
+      gosub check_colour_keys
 
-    if a$ = " " or a$ = KEY_DEL then begin
-        poke $ff80000 + (cy + 2) * WIDTH + cx * 2 + 1, 12
-        x = mod(cx, 8)
-        y = mod(cy, 8)
-        xx = int(cx / 8)
-        yy = int(cy / 8)
-        poke char_idx(fidx) * $40 + $40 * chr_height(fidx) * xx + $40 * yy + y * 8 + x, $00
+      if a$ = KEY_F1 then gosub load_data
+      if a$ = KEY_F3 then gosub save_data
+
+      if a$ = "," and fidx > 0 then begin
+        fidx = fidx - 1
+        gosub redraw_screen
+      bend
+
+      if a$ = "." and fidx < frame_count - 1 then begin
+        fidx = fidx + 1
+        gosub redraw_screen
+      bend
+
+      if a$ = KEY_MEGA_A then gosub prompt_add_frame
+
+      if a$ = KEY_CLR then gosub prompt_clear
+
+      if a$ = KEY_MEGA_D then gosub duplicate
+
+      if a$ = KEY_MEGA_B then gosub prompt_bounding_box
+
+      if a$ = KEY_MEGA_R then gosub do_rectangle
+
     bend
 
+    if state = STATE_BOUNDING_BOX or state = STATE_BOUNDING_BOX2 then begin
+      if a$ = KEY_RETURN then gosub update_bounding_box_coord
+    bend
 
     ' mega-q = exit
     if a$ = KEY_MEGA_Q then gosub handle_quit
 
-    if a$ = KEY_F1 then gosub load_data
-    if a$ = KEY_F3 then gosub save_data
-
-    if a$ = "," and fidx > 0 then begin
-      fidx = fidx - 1
-      gosub redraw_screen
-    bend
-
-    if a$ = "." and fidx < frame_count - 1 then begin
-      fidx = fidx + 1
-      gosub redraw_screen
-    bend
-
-    if a$ = KEY_MEGA_A then gosub prompt_add_frame
-
-    if a$ = KEY_CLR then gosub prompt_clear
     cursor_clr = mod(cursor_clr + 1, 16)
 
-    if a$ = KEY_MEGA_D then gosub duplicate
-
-    if a$ = KEY_MEGA_B then gosub prompt_bounding_box
-
-    if a$ = KEY_MEGA_R then gosub do_rectangle
   loop
+
+
   return
+
+
+'-------------------------
+.update_bounding_box_coord
+'-------------------------
+  if state = STATE_BOUNDING_BOX then begin
+    bb_tlx(fidx, sel_idx%) = cx
+    bb_tly(fidx, sel_idx%) = cy
+    state = STATE_BOUNDING_BOX2
+    return
+  bend
+
+  if state = STATE_BOUNDING_BOX2 then begin
+    bb_brx(fidx, sel_idx%) = cx
+    bb_bry(fidx, sel_idx%) = cy
+    state = STATE_DEFAULT
+
+    gosub prompt_bounding_box
+  bend
+
+  return
+
+
+'-----------------
+.check_colour_keys
+'-----------------
+  for k = 0 to 15
+    if a$ = clr_key$(k) then begin
+      sel_clr = slice * 16 + k
+      poke $ff80000 + (cy + 2) * WIDTH + cx * 2 + 1, sel_clr
+      x = mod(cx, 8)
+      y = mod(cy, 8)
+      xx = int(cx / 8)
+      yy = int(cy / 8)
+      poke char_idx(fidx) * $40 + $40 * chr_height(fidx) * xx + $40 * yy + y * 8 + x, sel_clr
+    bend
+  next k
+
+  if a$ = " " or a$ = KEY_DEL then begin
+    poke $ff80000 + (cy + 2) * WIDTH + cx * 2 + 1, 12
+    x = mod(cx, 8)
+    y = mod(cy, 8)
+    xx = int(cx / 8)
+    yy = int(cy / 8)
+    poke char_idx(fidx) * $40 + $40 * chr_height(fidx) * xx + $40 * yy + y * 8 + x, $00
+  bend
+  return
+
 
 
 '-----------
@@ -272,14 +316,119 @@ trap runstop_trapper
 '-------------------
 .prompt_bounding_box
 '-------------------
+  pane_width% = 30
+  pane_height% = 30
+  gosub show_centred_pane
+
+  state = STATE_DEFAULT
+
+  if sel_idx% >= bb_cnt(fidx) then sel_idx% = 0
+
+  gosub draw_bounding_box_details
+
   do while 1
     get key a$
+    if a$ = "a" then gosub add_bounding_box
+
+    if a$ = "d" then gosub delete_bounding_box
+
+    if a$ = KEY_DOWN then begin
+      sel_idx% = mod(sel_idx% + 1, bb_cnt(fidx))
+      gosub clear_pane
+      gosub draw_bounding_box_details
+    bend
+
+    if a$ = KEY_UP then begin
+      sel_idx% = mod(sel_idx% + bb_cnt(fidx) - 1, bb_cnt(fidx))
+      gosub clear_pane
+      gosub draw_bounding_box_details
+    bend
+
+    if (a$ = "e" or a$ = KEY_RETURN) and bb_cnt(fidx) > 0 then begin
+      a$ = ""
+      cx = bb_tlx(fidx, sel_idx%)
+      cy = bb_tly(fidx, sel_idx%)
+      state = STATE_BOUNDING_BOX
+      gosub hide_pane
+      exit
+    bend
+
     if a$ = KEY_ESCAPE or a$ = KEY_MEGA_Q then begin
-      ' todo: cleanup extra text on screen
+      a$ = ""
+      gosub hide_pane
       exit
     bend
   loop
 
+  return
+
+
+'-------------------------
+.draw_bounding_box_details
+'-------------------------
+  tx = pane_x% + 2 : ty = pane_y% + 2 : tclr = 0
+  a$ = "bounding box details:"
+  gosub draw_text
+
+  ty = ty + 1 : a$ = "(a)dd  (d)elete  (e)dit"
+  gosub draw_text
+
+  idx = 0
+  do while idx < bb_cnt(fidx)
+    ty = ty + 2
+    a$ = ""
+    if idx = sel_idx% then a$ = KEY_REV_ON
+    a$ = a$ + "(" + mid$(str$(bb_tlx(fidx, idx)), 2)
+    a$ = a$ + "," + str$(bb_tly(fidx, idx)) + ") - ("
+    a$ = a$ + mid$(str$(bb_brx(fidx, idx)), 2)
+    a$ = a$ + "," + str$(bb_bry(fidx, idx)) + ")"
+    gosub draw_text
+
+    idx = idx + 1
+  loop
+  return
+
+
+'----------------
+.add_bounding_box
+'----------------
+  bb_cnt(fidx) = bb_cnt(fidx) + 1
+
+  sel_idx% = bb_cnt(fidx) - 1
+
+  gosub clear_pane
+  gosub draw_bounding_box_details
+
+  return
+
+
+'-------------------
+.delete_bounding_box
+'-------------------
+  if sel_idx% < bb_cnt(fidx) - 1 then begin
+    for k = sel_idx% to bb_cnt(fidx) - 2
+      bb_tlx(fidx, k) = bb_tlx(fidx, k + 1)
+      bb_tly(fidx, k) = bb_tly(fidx, k + 1)
+      bb_brx(fidx, k) = bb_brx(fidx, k + 1)
+      bb_bry(fidx, k) = bb_bry(fidx, k + 1)
+    next k
+  bend
+
+  bb_cnt(fidx) = bb_cnt(fidx) - 1
+
+  if sel_idx% = bb_cnt(fidx) and sel_idx% > 0 then sel_idx% = bb_cnt(fidx) - 1
+
+  gosub clear_pane
+  gosub draw_bounding_box_details
+
+  return
+
+
+'----------
+.clear_pane
+'----------
+  ' clear_pane
+  bank 0 : sys $7f12 : bank 128
   return
 
 
@@ -423,6 +572,7 @@ trap runstop_trapper
       get#2, xx : chr_height(k) = xx and 255
       get#2, xx, yy
       char_idx(k) = (xx and 255) + (yy and 255) * 256
+
       get#2, xx : bb_cnt(k) = xx and 255
       if bb_cnt(k) > 0 then begin
         for kk = 0 to bb_cnt(k) - 1
@@ -721,6 +871,7 @@ trap runstop_trapper
   bank 128
   key off
 
+  bload "game.pal",p($ffd3100)
   bload "chars.bin",p($40000),r
   bload "asmhelper"
 
