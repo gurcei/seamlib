@@ -740,53 +740,11 @@ trap runstop_trapper
 '----------
 .draw_frame
 '----------
-
-  ty = 1 : tx = 0 : tclr = 12
-
-  for yy = 1 to chr_height(fidx)
-    ty = ty + 1
-    tx = 0
-
-    for x = 1 to chr_width(fidx)
-      value = $1002 : gosub plot_char
-      tx = tx + 1
-
-      value = $1003
-      for k = 1 to 7
-        gosub plot_char
-        tx = tx + 1
-      next k
-    next x
-
-    value = $1006 : gosub plot_char
-
-    for y = 1 to 7
-      ty = ty + 1
-      tx = 0
-      for x = 1 to chr_width(fidx)
-        value = $1004 : gosub plot_char
-        tx = tx + 1
-
-        value = $1005
-        for k = 1 to 7
-          gosub plot_char
-          tx = tx + 1
-        next k
-      next x
-
-      value = $1006 : gosub plot_char
-
-    next y
-  next yy
-
-  ty = ty + 1
-  tx = 0
-  value = $1007
-  for x = 1 to chr_width(fidx) * 8
-    gosub plot_char
-    tx = tx + 1
-  next x
-
+  bank 0
+  poke $7e16, chr_width(fidx)
+  poke $7e17, chr_height(fidx)
+  sys $7f18
+  bank 128
   return
 
 

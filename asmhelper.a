@@ -57,7 +57,7 @@ OP_FILL = 3
   cmp #.val
 }
 
-!macro lsl8 .var, .cnt {
+!macro lsl8_by .var, .cnt {
   phx
   ldx #.cnt
   lda .var
@@ -489,7 +489,149 @@ char_idx: !word $00             // 7E18
   jmp plot_char       // 7F0F
   jmp clear_pane_insides   // 7F12
   jmp draw_frame_contents  // 7F15
+  jmp draw_frame           // 7F18
 
+
+//--------
+draw_frame:
+//--------
+//  ty = 1 : tx = 0 : tclr = 12
+    +set8 ty, 1
+    +set8 tx, 0
+    +set8 tclr, 12
+
+//  for yy = 1 to chr_height(fidx)
+    +set8 yy, 1
+----:
+//    ty = ty + 1
+      +inc8 ty
+
+//    tx = 0
+      +set8 tx, 0
+//
+//    for x = 1 to chr_width(fidx)
+      ldx #$01
+--:
+//      value = $1002 : gosub plot_char
+        +set16 value, $1002
+        jsr plot_char
+
+//      tx = tx + 1
+        +inc8 tx
+//
+//      value = $1003
+        +set16 value, $1003
+
+//      for k = 1 to 7
+        +set8 kptr, 1
+-:
+//        gosub plot_char
+          jsr plot_char
+
+//        tx = tx + 1
+          +inc8 tx
+
+//      next k
+        +inc8 kptr
+        +cmp8 kptr, 8
+        bne -
+
+//    next x
+      inx
+      cpx chr_width
+      bcc --
+      beq --
+
+//    value = $1006 : gosub plot_char
+      +set16 value, $1006
+      jsr plot_char
+
+//    for y = 1 to 7
+      ldy #$01
+---:
+//      ty = ty + 1
+        +inc8 ty
+
+//      tx = 0
+        +set8 tx, 0
+
+//      for x = 1 to chr_width(fidx)
+        ldx #$01
+--:
+//        value = $1004 : gosub plot_char
+          +set16 value, $1004
+          jsr plot_char
+
+//        tx = tx + 1
+          +inc8 tx
+
+//        value = $1005
+          +set16 value, $1005
+
+//        for k = 1 to 7
+          +set8 kptr, 1
+-:
+//          gosub plot_char
+            jsr plot_char
+
+//          tx = tx + 1
+            +inc8 tx
+
+//        next k
+          +inc8 kptr
+          +cmp8 kptr, $08
+          bne -
+
+//      next x
+        inx
+        cpx chr_width
+        bcc --
+        beq --
+
+//      value = $1006 : gosub plot_char
+        +set16 value, $1006
+        jsr plot_char
+//
+//    next y
+      iny
+      cpy #$08
+      bcc ---
+
+//  next yy
+    +inc8 yy
+    +cmp8v8 yy, chr_height
+    lbcc ----
+    lbeq ----
+
+//  ty = ty + 1
+    +inc8 ty
+
+//  tx = 0
+    +set8 tx, 0
+
+//  value = $1007
+    +set16 value, $1007
+
+    +copy8 kptr, chr_width
+    +lsl8_by kptr, 3
+
+//  for x = 1 to chr_width(fidx) * 8
+    ldx #$01
+-:
+//    gosub plot_char
+      jsr plot_char
+
+//    tx = tx + 1
+      +inc8 tx
+
+//  next x
+    inx
+    cpx kptr
+    bcc -
+    beq -
+
+//  return
+    rts
 
 //-----------------
 draw_frame_contents:
@@ -503,11 +645,11 @@ draw_frame_contents:
 ---: 
 //      tx = xx * 8
         +copy8 tx, xx
-        +lsl8 tx, 3
+        +lsl8_by tx, 3
 
 //      ty = yy * 8 + 2
         +copy8 ty, yy
-        +lsl8 ty, 3
+        +lsl8_by ty, 3
         +add8 ty, 2
 
 //      for y = 0 to 7
@@ -614,6 +756,9 @@ prepare_screen_and_clr_pointers:
 //-----------------------------
 // prepare screen pointer
 //      $40800 + ty * WIDTH + tx * 2
+    phx
+    phy
+
     clc
     lda tx
     rol
@@ -651,6 +796,8 @@ prepare_screen_and_clr_pointers:
     lda #$0f
     sta CLRPTR+3
 
+    ply
+    plx
     rts
 
 
