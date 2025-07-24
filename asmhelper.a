@@ -490,6 +490,7 @@ char_idx: !word $00             // 7E18
   jmp clear_pane_insides   // 7F12
   jmp draw_frame_contents  // 7F15
   jmp draw_frame           // 7F18
+  jmp preserve_data_behind_pane  // 7F1B
 
 
 //--------
@@ -801,9 +802,19 @@ prepare_screen_and_clr_pointers:
     rts
 
 
-//-----------------------------
-preserve_colour_data_behind_pane:
-//-----------------------------
+//-----------------------
+preserve_data_behind_pane:
+//-----------------------
+//  xx% = pane_x + pane_width% - 1
+    +copy8 xx, pane_width
+    +dec8 xx
+    +add8v8 xx, pane_x
+
+//  yy% = pane_y + pane_height% - 1
+    +copy8 yy, pane_height
+    +dec8 yy
+    +add8v8 yy, pane_y
+
 //  ' preserve screen + colour data behind pane
 //  ' save to $4,4000
 //  loc = $44000
@@ -1054,17 +1065,7 @@ clear_pane_insides:
 //------
 draw_pane:
 //------
-//  xx% = pane_x + pane_width% - 1
-    +copy8 xx, pane_width
-    +dec8 xx
-    +add8v8 xx, pane_x
-
-//  yy% = pane_y + pane_height% - 1
-    +copy8 yy, pane_height
-    +dec8 yy
-    +add8v8 yy, pane_y
-
-    jsr preserve_colour_data_behind_pane
+    jsr preserve_data_behind_pane
 
     jsr draw_pane_horz_lines
 

@@ -25,7 +25,7 @@
 #declare aptr_lo, aptr_hi
 
 #declare pane_x%, pane_y%, pane_width%, pane_height%, pane_title%
-#declare sel_idx%, state
+#declare sel_idx%, state, orig_cx, orig_cy, draft_flag
 
 
 '-------
@@ -67,6 +67,7 @@
 #define STATE_DEFAULT = 0
 #define STATE_BOUNDING_BOX = 1
 #define STATE_BOUNDING_BOX2 = 2
+#define STATE_RECT = 3
 
 
 trap runstop_trapper
@@ -144,9 +145,33 @@ trap runstop_trapper
 
     bend
 
+    ' - - - - - - -
+
     if state = STATE_BOUNDING_BOX or state = STATE_BOUNDING_BOX2 then begin
       if a$ = KEY_RETURN then gosub update_bounding_box_coord
     bend
+
+    ' - - - - - - -
+
+    if state = STATE_RECT then begin
+      if a$ = "r" or a$ = KEY_RETURN then gosub do_rectangle
+
+      if a$ = KEY_UP or a$ = KEY_DOWN or {x5F}
+         a$ = KEY_LEFT or a$ = KEY_RIGHT then begin
+
+        draft_flag = 1
+        gosub redraw_rect_at_cursor_pos
+
+      bend
+
+      if a$ = KEY_ESCAPE then begin
+        gosub redraw_preserved_data
+        state = STATE_DEFAULT
+      bend
+
+    bend
+
+    ' - - - - - - -
 
     ' mega-q = exit
     if a$ = KEY_MEGA_Q then gosub handle_quit
@@ -249,9 +274,9 @@ trap runstop_trapper
   return
 
 
-'--------
+'---------
 .hide_pane
-'--------
+'---------
   bank 0
   poke $7e10, pane_x%
   poke $7e11, pane_y%
@@ -262,42 +287,94 @@ trap runstop_trapper
   return
 
 
+'---------------------
+.redraw_preserved_data
+'---------------------
+  bank 0
+^^  sys to $7f0c, i0
+  bank 128
+  return
+
+
 '------------
 .do_rectangle
 '------------
+  state = STATE_RECT
+
   if rect_state = 0 then begin
     rect_x1% = cx
     rect_y1% = cy
     rect_state = 1
 
+    gosub preserve_data_behind_pane
+
   bend : else begin
 
-    rect_x2% = cx
-    rect_y2% = cy
-
-    dr = 1
-    if rect_x1% > rect_x2% then dr = -1
-
-    for cx = rect_x1% to rect_x2% step dr
-      cy = rect_y1%
-      gosub plot_pixel
-      cy = rect_y2%
-      gosub plot_pixel
-    next cx
-
-    dr = 1
-    if rect_y1% > rect_y2% then dr = -1
-
-    for cy = rect_y1% to rect_y2% step dr
-      cx = rect_x1%
-      gosub plot_pixel
-      cx = rect_x2%
-      gosub plot_pixel
-    next cy
+    draft_flag = 0
+    gosub redraw_rect_at_cursor_pos
 
     rect_state = 0
+    state = STATE_DEFAULT
   bend
 
+  return
+
+
+'-------------------------
+.redraw_rect_at_cursor_pos
+'-------------------------
+  rect_x2% = cx
+  rect_y2% = cy
+
+  gosub redraw_preserved_data
+  gosub draw_rect
+
+  return
+
+
+'---------
+.draw_rect
+'---------
+  dr = 1
+  if rect_x1% > rect_x2% then dr = -1
+
+  orig_cx = cx
+  orig_cy = cy
+
+  for cx = rect_x1% to rect_x2% step dr
+    cy = rect_y1%
+    gosub plot_pixel
+    cy = rect_y2%
+    gosub plot_pixel
+  next cx
+
+  dr = 1
+  if rect_y1% > rect_y2% then dr = -1
+
+  for cy = rect_y1% to rect_y2% step dr
+    cx = rect_x1%
+    gosub plot_pixel
+    cx = rect_x2%
+    gosub plot_pixel
+  next cy
+
+  cx = orig_cx
+  cy = orig_cy
+
+  return
+
+
+'-------------------------
+.preserve_data_behind_pane
+'-------------------------
+  bank 0
+  poke $7e10, 0  ' pane_x
+  poke $7e11, 2  ' pane_y
+  poke $7e12, chr_width(fidx) * 8  ' pane_width
+  poke $7e13, chr_height(fidx) * 8  ' pane_height
+^^  sys to $7f1b, i0
+  bank 128
+  
   return
 
 
@@ -305,6 +382,9 @@ trap runstop_trapper
 .plot_pixel
 '----------
   poke $ff80000 + (cy + 2) * WIDTH + cx * 2 + 1, sel_clr
+
+  if draft_flag = 1 then return  ' we haven't finalised
+
   x = mod(cx, 8)
   y = mod(cy, 8)
   xx = int(cx / 8)
