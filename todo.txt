@@ -10,7 +10,8 @@ DONE- draw in 3x3 char groups as soft-sprites/pixies
 - draw 18x18 box around region to suit sorceress sprites
 DONE- Use , and . to select between sprite frames
 DONE- select 'add' new frame
-- add 'bounding box' editor (see how it was done in megafoot's grabber tool)
+DONE- add 'bounding box' editor (see how it was done in megafoot's grabber tool)
+- seamlib: add logic to assess bounding box collisions between sprites
 
 stretch goals
 -------------

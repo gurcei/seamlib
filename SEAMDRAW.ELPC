@@ -148,7 +148,21 @@ trap runstop_trapper
     ' - - - - - - -
 
     if state = STATE_BOUNDING_BOX or state = STATE_BOUNDING_BOX2 then begin
-      if a$ = KEY_RETURN then gosub update_bounding_box_coord
+      if state = STATE_BOUNDING_BOX2 then begin
+        if a$ = KEY_UP or a$ = KEY_DOWN or {x5F}
+           a$ = KEY_LEFT or a$ = KEY_RIGHT then begin
+          draft_flag = 1
+          gosub redraw_rect_at_cursor_pos
+        bend
+      bend
+      if a$ = KEY_RETURN then begin
+        draft_flag = 1
+        gosub update_bounding_box_coord
+      bend
+      if a$ = KEY_ESCAPE or a$ = KEY_MEGA_Q then begin
+        gosub draw_frame_contents
+        state = STATE_DEFAULT
+      bend
     bend
 
     ' - - - - - - -
@@ -158,7 +172,6 @@ trap runstop_trapper
 
       if a$ = KEY_UP or a$ = KEY_DOWN or {x5F}
          a$ = KEY_LEFT or a$ = KEY_RIGHT then begin
-
         draft_flag = 1
         gosub redraw_rect_at_cursor_pos
 
@@ -188,17 +201,29 @@ trap runstop_trapper
 .update_bounding_box_coord
 '-------------------------
   if state = STATE_BOUNDING_BOX then begin
-    bb_tlx(fidx, sel_idx%) = cx
-    bb_tly(fidx, sel_idx%) = cy
+    rect_x1% = cx
+    rect_y1% = cy
+    rect_x2% = cx
+    rect_y1% = cy
+
+    gosub redraw_rect_at_cursor_pos
+
     state = STATE_BOUNDING_BOX2
     return
   bend
 
   if state = STATE_BOUNDING_BOX2 then begin
+    bb_tlx(fidx, sel_idx%) = rect_x1%
+    bb_tly(fidx, sel_idx%) = rect_y1%
+
     bb_brx(fidx, sel_idx%) = cx
     bb_bry(fidx, sel_idx%) = cy
     state = STATE_DEFAULT
 
+    sel_clr = bkp_clr
+
+    state = STATE_DEFAULT
+    gosub draw_frame_contents
     gosub prompt_bounding_box
   bend
 
@@ -306,7 +331,7 @@ trap runstop_trapper
     rect_y1% = cy
     rect_state = 1
 
-    gosub preserve_data_behind_pane
+    gosub preserve_frame_contents
 
   bend : else begin
 
@@ -364,15 +389,15 @@ trap runstop_trapper
   return
 
 
-'-------------------------
-.preserve_data_behind_pane
-'-------------------------
+'-----------------------
+.preserve_frame_contents
+'-----------------------
   bank 0
   poke $7e10, 0  ' pane_x
   poke $7e11, 2  ' pane_y
   poke $7e12, chr_width(fidx) * 8  ' pane_width
   poke $7e13, chr_height(fidx) * 8  ' pane_height
-^^  sys to $7f1b, i0
+  sys $7f1b
   bank 128
   
   return
@@ -402,8 +427,10 @@ trap runstop_trapper
 
   pane_width% = 30
   pane_height% = 30
+  pane_x% = (80 - pane_width%) / 2 + 10
+  pane_y% = (50 - pane_height%) / 2 + 5
 
-  gosub show_centred_pane
+  gosub draw_pane
 
   state = STATE_DEFAULT
 
@@ -415,14 +442,14 @@ trap runstop_trapper
 
     if a$ = "d" then gosub delete_bounding_box
 
-    if a$ = KEY_DOWN then begin
+    if a$ = KEY_DOWN and bb_cnt(fidx) > 0 then begin
       sel_idx% = mod(sel_idx% + 1, bb_cnt(fidx))
       gosub clear_pane
       gosub draw_bounding_boxes
       gosub draw_bounding_box_details
     bend
 
-    if a$ = KEY_UP then begin
+    if a$ = KEY_UP and bb_cnt(fidx) > 0 then begin
       sel_idx% = mod(sel_idx% + bb_cnt(fidx) - 1, bb_cnt(fidx))
       gosub clear_pane
       gosub draw_bounding_boxes
@@ -435,6 +462,10 @@ trap runstop_trapper
       cy = bb_tly(fidx, sel_idx%)
       state = STATE_BOUNDING_BOX
       gosub hide_pane
+      gosub preserve_frame_contents
+      bkp_clr = sel_clr
+      sel_clr = 1
+      a$ = ""
       exit
     bend
 
@@ -442,7 +473,7 @@ trap runstop_trapper
       a$ = ""
       gosub hide_pane
       gosub draw_frame_contents
-      exit
+      exit  ' using exit within if-begin-bend seems to cause weird jumps
     bend
   loop
 
@@ -534,6 +565,7 @@ trap runstop_trapper
   if sel_idx% = bb_cnt(fidx) and sel_idx% > 0 then sel_idx% = bb_cnt(fidx) - 1
 
   gosub clear_pane
+  gosub draw_frame_contents
   gosub draw_bounding_box_details
 
   return
