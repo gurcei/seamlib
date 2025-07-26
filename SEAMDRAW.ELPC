@@ -26,7 +26,7 @@
 
 #declare pane_x%, pane_y%, pane_width%, pane_height%, pane_title%
 #declare sel_idx%, state, orig_cx, orig_cy, draft_flag
-#declare bkp_cx, bkp_cy, bkp_clr
+#declare bkp_cx, bkp_cy, bkp_clr, copy_idx
 
 '-------
 .defines
@@ -469,13 +469,59 @@ trap runstop_trapper
       exit
     bend
 
+
+    if a$ = KEY_MEGA_C then copy_idx = fidx
+
+    if a$ = KEY_MEGA_V then gosub paste_bounding_boxes
+
+    if a$ = "," and fidx > 0 then begin
+      fidx = fidx - 1
+      gosub hide_pane
+      gosub redraw_screen
+      gosub draw_bounding_boxes
+      gosub draw_pane
+      gosub draw_bounding_box_details
+    bend
+
+    if a$ = "." and fidx < frame_count - 1 then begin
+      fidx = fidx + 1
+      gosub hide_pane
+      gosub redraw_screen
+      gosub draw_bounding_boxes
+      gosub draw_pane
+      gosub draw_bounding_box_details
+    bend
+
     if a$ = KEY_ESCAPE or a$ = KEY_MEGA_Q then begin
       a$ = ""
       gosub hide_pane
       gosub draw_frame_contents
       exit  ' using exit within if-begin-bend seems to cause weird jumps
     bend
+
   loop
+
+  return
+
+
+'--------------------
+.paste_bounding_boxes
+'--------------------
+  bb_cnt(fidx) = bb_cnt(copy_idx)
+
+  if bb_cnt(fidx) > 0 then begin
+    for k = 0 to bb_cnt(fidx) - 1
+      bb_tlx(fidx, k) = bb_tlx(copy_idx, k)
+      bb_tly(fidx, k) = bb_tly(copy_idx, k)
+      bb_brx(fidx, k) = bb_brx(copy_idx, k)
+      bb_bry(fidx, k) = bb_bry(copy_idx, k)
+    next k
+  bend
+
+  gosub clear_pane
+  gosub draw_frame_contents
+  gosub draw_bounding_boxes
+  gosub draw_bounding_box_details
 
   return
 
