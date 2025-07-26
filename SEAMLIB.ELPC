@@ -25,7 +25,10 @@
 #declare a$, yy, offsy, tmp, tmpx, tmpy
 #declare tclr, tx, ty, rev_flag, chr
 #declare ln$, char_count, xx, kk, sidx, old_sidx, anim_tmr
-#declare cx, cy
+#declare cx, cy, sidx2, objx2, objy2, k1, k2
+#declare box1_x1%, box1_y1%, box1_x2%, box1_y2%
+#declare box2_x1%, box2_y1%, box2_x2%, box2_y2%
+#declare collision_flag, fidx2
 
 #declare debug_bb = 1
 
@@ -331,6 +334,8 @@ trap runstop_trapper
 
     gosub animate_objects
 
+    gosub check_box_collisions
+
     get a$
     if a$ = KEY_LEFT then spr_ox%(sidx) = spr_ox%(sidx) - 1
     if a$ = KEY_RIGHT then spr_ox%(sidx) = spr_ox%(sidx) + 1
@@ -391,6 +396,95 @@ bank 0
     gosub draw_object
   next sidx
   sidx = old_sidx
+  return
+
+
+'--------------------
+.check_box_collisions
+'--------------------
+  collision_flag = 0
+
+  old_sidx = sidx
+
+  for sidx = 0 to spr_count - 1
+    objx = spr_ox%(sidx)
+    objy = spr_oy%(sidx)
+  
+    for sidx2 = sidx to spr_count - 1
+      if sidx <> sidx2 then begin
+        objx2 = spr_ox%(sidx2)
+        objy2 = spr_oy%(sidx2)
+
+        fidx = spr_fidx%(sidx)
+        fidx = spr_frames%(sidx, fidx)
+
+        if bb_cnt(fidx) > 0 then begin
+          for k1 = 0 to bb_cnt(fidx) - 1
+            box1_x1% = objx + bb_tlx(fidx, k1)
+            box1_y1% = objy + bb_tly(fidx, k1)
+            box1_x2% = objx + bb_brx(fidx, k1)
+            box1_y2% = objy + bb_bry(fidx, k1)
+
+            fidx2 = spr_fidx%(sidx2)
+            fidx2 = spr_frames%(sidx2, fidx2)
+            if bb_cnt(fidx2) > 0 then begin
+              for k2 = 0 to bb_cnt(fidx2) - 1
+                box2_x1% = objx2 + bb_tlx(fidx2, k2)
+                box2_y1% = objy2 + bb_tly(fidx2, k2)
+                box2_x2% = objx2 + bb_brx(fidx2, k2)
+                box2_y2% = objy2 + bb_bry(fidx2, k2)
+
+                gosub check_box_collision
+              next k2
+            bend
+          next k1
+        bend
+
+      bend
+    next sidx2
+      
+  next sidx
+
+  sidx = old_sidx
+
+  if collision_flag = 1 then begin
+    border 7
+  bend : else begin
+    border 0
+  bend
+
+  return
+
+
+'-------------------
+.check_box_collision
+'-------------------
+  if not (box2_x1% > box1_x2% or {x5F}
+          box2_x2% < box1_x1% or {x5F}
+          box2_y1% > box1_y2% or {x5F}
+          box2_y2% < box1_y1%) then {x5F}
+  begin
+    'tx = 0 : ty = 0 : a$ = "spr" + str$(sidx) + ", spr" + str$(sidx2)
+    'gosub draw_text
+
+    'ty = 1 : a$ = "fidx="+str$(fidx) + ", fidx2="+str$(fidx2)
+    'gosub draw_text
+
+    'ty = 2
+    'a$ = "(" + str$(box1_x1%) + "," + str$(box1_y1%) + ") - ("
+    'a$ = a$ + str$(box1_x2%) + "," + str$(box1_y2%) + ")"
+    'gosub draw_text
+
+    'ty = 3
+    'a$ = "(" + str$(box2_x1%) + "," + str$(box2_y1%) + ") - ("
+    'a$ = a$ + str$(box2_x2%) + "," + str$(box2_y2%) + ")"
+    'gosub draw_text
+
+    'get key a$
+
+    collision_flag = 1
+  bend
+
   return
 
 
