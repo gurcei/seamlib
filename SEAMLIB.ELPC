@@ -25,7 +25,9 @@
 #declare a$, yy, offsy, tmp, tmpx, tmpy
 #declare tclr, tx, ty, rev_flag, chr
 #declare ln$, char_count, xx, kk, sidx, old_sidx, anim_tmr
+#declare cx, cy
 
+#declare debug_bb = 1
 
 '-------
 .defines
@@ -94,7 +96,7 @@ trap runstop_trapper
 '----
   bank 0
   bload "game.pal",p($ffd3100)
-  ln$ = "moana3.bin"
+  ln$ = "moana4.bin"
   gosub load_data
   bload "asmhelper"
   bank 128
@@ -564,7 +566,49 @@ bank 0
 
     dclose #2
 
+    if debug_bb = 1 then gosub draw_bounding_boxes
+
   bend
+
+  return
+
+
+'-------------------
+.draw_bounding_boxes
+'-------------------
+  for fidx = 0 to frame_count% - 1
+    if bb_cnt(fidx) > 0 then begin
+      for k = 0 to bb_cnt(fidx) - 1
+
+        for cx = bb_tlx(fidx, k) to bb_brx(fidx, k)
+          cy = bb_tly(fidx, k)
+          gosub plot_pixel
+          cy = bb_bry(fidx, k)
+          gosub plot_pixel
+        next cx
+
+        for cy = bb_tly(fidx, k) to bb_bry(fidx, k)
+          cx = bb_tlx(fidx, k)
+          gosub plot_pixel
+          cx = bb_brx(fidx, k)
+          gosub plot_pixel
+        next cy
+
+      next k
+    bend
+  next fidx
+
+  return
+
+
+'----------
+.plot_pixel
+'----------
+  x = mod(cx, 8)
+  y = mod(cy, 8)
+  xx = int(cx / 8)
+  yy = int(cy / 8)
+  poke char_idx%(fidx) * $40 + $40 * chr_height%(fidx) * xx + $40 * yy + y * 8 + x, 1
 
   return
 ÿ
