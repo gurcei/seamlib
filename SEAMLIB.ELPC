@@ -20,7 +20,7 @@
 #declare spr_frame_count%(100), spr_frames%(100,20), spr_visible%(100)
 #declare spr_fidx%(100), stage_x_offs%(100), spr_count
 #declare spr_ox%(100), spr_oy%(100)
-
+#declare spr_collide&(7,7)
 #declare objx, objy, oldyy, minyy, maxyy, yybot 
 #declare a$, yy, offsy, tmp, tmpx, tmpy
 #declare tclr, tx, ty, rev_flag, chr
@@ -402,15 +402,14 @@ bank 0
 '--------------------
 .check_box_collisions
 '--------------------
-  collision_flag = 0
-
   old_sidx = sidx
 
   for sidx = 0 to spr_count - 1
     objx = spr_ox%(sidx)
     objy = spr_oy%(sidx)
   
-    for sidx2 = sidx to spr_count - 1
+    for sidx2 = 0 to spr_count - 1
+      collision_flag = 0
       if sidx <> sidx2 then begin
         objx2 = spr_ox%(sidx2)
         objy2 = spr_oy%(sidx2)
@@ -439,6 +438,8 @@ bank 0
             bend
           next k1
         bend
+
+        spr_collide&(sidx, sidx2) = collision_flag
 
       bend
     next sidx2
@@ -482,7 +483,7 @@ bank 0
 
     'get key a$
 
-    collision_flag = 1
+    collision_flag = (2 ^ k2) or collision_flag
   bend
 
   return
