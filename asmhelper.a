@@ -78,19 +78,18 @@ OP_FILL = 3
 }
 
 !macro read_v8_from_dptr_and_inc .dptr, .var8 {
-  +copy32 PTR1, .dptr
   ldz #$00
   +set_v8_to_val_dptr .var8, .dptr
   +inc32 PTR1
   +copy32 .dptr, PTR1
 }
 
-!macro read_v16_from_dptr_and_inc .dptr, .var16 {
-  +copy32 PTR1, .dptr
+// NOTE: basic ints are stored as big-endian
+!macro read_v16_be_from_dptr_and_inc .dptr, .var16 {
   ldz #$00
-  +set_v8_to_val_dptr .var16, PTR1
+  +set_v8_to_val_dptr .var16+1, .dptr
   inz
-  +set_v8_to_val_dptr .var16+1, PTR1
+  +set_v8_to_val_dptr .var16, .dptr
   +inc32 PTR1
   +inc32 PTR1
 
@@ -277,10 +276,17 @@ OP_FILL = 3
 }
 
 !macro inc32 .var32 {
-    inw .var32
-    bne .skip
-    inw .var32+2
+  inw .var32
+  bne .skip
+  inw .var32+2
 .skip:
+}
+
+!macro inc32_dptr_twice .dptr {
+  +copy32 PTR1, .dptr
+  +inc32 PTR1
+  +inc32 PTR1
+  +copy32 .dptr, PTR1
 }
 
 !macro prepvar16 .array, .var {
@@ -683,8 +689,8 @@ check_box_collisions:
 .lp_sidx:
 //    objx = spr_ox%(sidx)
 //    objy = spr_oy%(sidx)
-      +read_v16_from_dptr_and_inc dptr_spr_ox, objx
-      +read_v16_from_dptr_and_inc dptr_spr_oy, objy
+      +read_v16_be_from_dptr_and_inc dptr_spr_ox, objx
+      +read_v16_be_from_dptr_and_inc dptr_spr_oy, objy
 
       // prepare sidx2-related pointers
       +prepare_dptr_to_array dptr_spr_ox2, $0001, array_objx
@@ -714,12 +720,18 @@ check_box_collisions:
 
 //      if sidx <> sidx2 then begin
         +cmp8v8 sidx, sidx2
-        lbeq .skip_box_check2
+        bne .cnt_box_check
 
+        // increment two pointers
+        +inc32_dptr_twice dptr_spr_ox2
+        +inc32_dptr_twice dptr_spr_oy2
+        lbra .skip_box_check2
+
+.cnt_box_check:
 //        objx2 = spr_ox%(sidx2)
 //        objy2 = spr_oy%(sidx2)
-          +read_v16_from_dptr_and_inc dptr_spr_ox2, objx2
-          +read_v16_from_dptr_and_inc dptr_spr_oy2, objy2
+          +read_v16_be_from_dptr_and_inc dptr_spr_ox2, objx2
+          +read_v16_be_from_dptr_and_inc dptr_spr_oy2, objy2
 
 //        if bb_cnt&(fidx) > 0 then begin
           +cmp8 bb_cnt, $00
@@ -834,6 +846,14 @@ check_box_collisions:
 //  return
     rts
 
+!macro cmp16 .var1, .var2 {
+  sec
+  lda .var1
+  sbc .var2
+
+  lda .var1+1
+  sbc .var2+1
+}
 
 //-----------------
 check_box_collision:
@@ -842,13 +862,13 @@ check_box_collision:
 //          box2_x2% < box1_x1% or {x5F}
 //          box2_y1% > box1_y2% or {x5F}
 //          box2_y2% < box1_y1%) then {x5F}
-  +cmp8v8 box1_x2, box2_x1
+  +cmp16 box1_x2, box2_x1
   bcc .skip
-  +cmp8v8 box2_x2, box1_x1
+  +cmp16 box2_x2, box1_x1
   bcc .skip
-  +cmp8v8 box1_y2, box2_y1
+  +cmp16 box1_y2, box2_y1
   bcc .skip
-  +cmp8v8 box2_y2, box1_y1
+  +cmp16 box2_y2, box1_y1
   bcc .skip
 
 //  begin

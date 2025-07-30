@@ -11,14 +11,14 @@
 ' frame details
 #declare default_slice(100), char_type(100), char_idx%(100)
 #declare chr_width%(100), chr_height%(100)
-#declare bb_tlx(100,10), bb_tly(100,10), bb_brx(100,10), bb_bry(100,10)
-#declare bb_cnt(100)
+#declare bb_tlx&(100,10), bb_tly&(100,10), bb_brx&(100,10), bb_bry&(100,10)
+#declare bb_cnt&(100)
 #declare old_fidx
 
 ' sprite details
 #declare spr_chr_width%(100), spr_chr_height%(100), spr_char_idx%(100)
-#declare spr_frame_count%(100), spr_frames%(100,20), spr_visible%(100)
-#declare spr_fidx%(100), stage_x_offs%(100), spr_count
+#declare spr_frame_count%(100), spr_frames&(100,20), spr_visible%(100)
+#declare spr_fidx&(100), stage_x_offs%(100), spr_count
 #declare spr_ox%(100), spr_oy%(100)
 #declare spr_collide&(7,7)
 #declare objx, objy, oldyy, minyy, maxyy, yybot 
@@ -105,7 +105,7 @@ trap runstop_trapper
   bank 128
   key off
 
-  ' prepare vars for assembly
+  ' prepare interface vars for assembly
   bank 0
   wpoke $7e00, pointer(spr_ox%(0))
   wpoke $7e02, pointer(spr_oy%(0))
@@ -114,6 +114,15 @@ trap runstop_trapper
   wpoke $7e08, pointer(spr_char_idx%(0))
   wpoke $7e0a, pointer(stage_x_offs%(0))
   poke $7e0c, spr_count
+
+  wpoke $7e1a, pointer(spr_fidx&(0))
+  wpoke $7e1c, pointer(spr_frames&(0,0))
+  wpoke $7e1e, pointer(bb_cnt&(0))
+  wpoke $7e20, pointer(bb_tlx&(0,0))
+  wpoke $7e22, pointer(bb_tly&(0,0))
+  wpoke $7e24, pointer(bb_brx&(0,0))
+  wpoke $7e26, pointer(bb_bry&(0,0))
+  wpoke $7e28, pointer(spr_collide&(0,0))
   bank 128
 
   ' prepare sprite details
@@ -121,33 +130,33 @@ trap runstop_trapper
   spr_chr_height%(S_CARPET) = 3
   spr_char_idx%(S_CARPET) = char_idx%(F_CARPET)
   spr_frame_count%(S_CARPET) = 1
-  spr_frames%(S_CARPET, 0) = F_CARPET
+  spr_frames&(S_CARPET, 0) = F_CARPET
 
   spr_chr_width%(S_KEY) = 1
   spr_chr_height%(S_KEY) = 1
   spr_char_idx%(S_KEY) = char_idx%(F_KEY)
   spr_frame_count%(S_KEY) = 1
-  spr_frames%(S_KEY, 0) = F_KEY
+  spr_frames&(S_KEY, 0) = F_KEY
 
   spr_chr_width%(S_BANANA) = 2
   spr_chr_height%(S_BANANA) = 2
   spr_char_idx%(S_BANANA) = char_idx%(F_BANANA)
   spr_frame_count%(S_BANANA) = 1
-  spr_frames%(S_BANANA, 0) = F_BANANA
+  spr_frames&(S_BANANA, 0) = F_BANANA
 
   spr_chr_width%(S_WBOTTLE) = 3
   spr_chr_height%(S_WBOTTLE) = 3
   spr_char_idx%(S_WBOTTLE) = char_idx%(F_WBOTTLE)
   spr_frame_count%(S_WBOTTLE) = 1
-  spr_frames%(S_WBOTTLE, 0) = F_WBOTTLE
+  spr_frames&(S_WBOTTLE, 0) = F_WBOTTLE
 
   for k = 0 to 3
     spr_chr_width%(S_WOLF1 + k) = 4
     spr_chr_height%(S_WOLF1 + k) = 4
     spr_char_idx%(S_WOLF1 + k) = char_idx%(F_WOLF1)
     spr_frame_count%(S_WOLF1 + k) = 2
-    spr_frames%(S_WOLF1 + k, 0) = F_WOLF1
-    spr_frames%(S_WOLF1 + k, 1) = F_WOLF2
+    spr_frames&(S_WOLF1 + k, 0) = F_WOLF1
+    spr_frames&(S_WOLF1 + k, 1) = F_WOLF2
   next k
   
   for k = 0 to spr_count - 1
@@ -356,10 +365,10 @@ trap runstop_trapper
 
   if anim_tmr = 0 then begin
     for k = 0 to 3
-      fidx = spr_fidx%(S_WOLF1 + k)
+      fidx = spr_fidx&(S_WOLF1 + k)
       fidx = mod(fidx + 1, 2)
-      spr_fidx%(S_WOLF1 + k) = fidx
-      tmp = char_idx%(spr_frames%(S_WOLF1 + k, fidx))
+      spr_fidx&(S_WOLF1 + k) = fidx
+      tmp = char_idx%(spr_frames&(S_WOLF1 + k, fidx))
       spr_char_idx%(S_WOLF1 + k) = tmp
     next k
   bend
@@ -384,24 +393,25 @@ trap runstop_trapper
 '------------
   vsync 250
   border 3
-bank 0
+  bank 0
 ^^  sys to $7f00, i0
   bank 128
-  return
-
-  ' TODO: remove below once sys call above works
-
-  old_sidx = sidx
-  for sidx = 0 to spr_count - 1
-    gosub draw_object
-  next sidx
-  sidx = old_sidx
   return
 
 
 '--------------------
 .check_box_collisions
 '--------------------
+  border 5
+  bank 0
+  sys $7f1e
+  bank 128
+  border 0
+
+  return
+
+  ' TODO: remove below once sys call above works
+
   old_sidx = sidx
 
   for sidx = 0 to spr_count - 1
@@ -414,24 +424,24 @@ bank 0
         objx2 = spr_ox%(sidx2)
         objy2 = spr_oy%(sidx2)
 
-        fidx = spr_fidx%(sidx)
-        fidx = spr_frames%(sidx, fidx)
+        fidx = spr_fidx&(sidx)
+        fidx = spr_frames&(sidx, fidx)
 
-        if bb_cnt(fidx) > 0 then begin
-          for k1 = 0 to bb_cnt(fidx) - 1
-            box1_x1% = objx + bb_tlx(fidx, k1)
-            box1_y1% = objy + bb_tly(fidx, k1)
-            box1_x2% = objx + bb_brx(fidx, k1)
-            box1_y2% = objy + bb_bry(fidx, k1)
+        if bb_cnt&(fidx) > 0 then begin
+          for k1 = 0 to bb_cnt&(fidx) - 1
+            box1_x1% = objx + bb_tlx&(fidx, k1)
+            box1_y1% = objy + bb_tly&(fidx, k1)
+            box1_x2% = objx + bb_brx&(fidx, k1)
+            box1_y2% = objy + bb_bry&(fidx, k1)
 
-            fidx2 = spr_fidx%(sidx2)
-            fidx2 = spr_frames%(sidx2, fidx2)
-            if bb_cnt(fidx2) > 0 then begin
-              for k2 = 0 to bb_cnt(fidx2) - 1
-                box2_x1% = objx2 + bb_tlx(fidx2, k2)
-                box2_y1% = objy2 + bb_tly(fidx2, k2)
-                box2_x2% = objx2 + bb_brx(fidx2, k2)
-                box2_y2% = objy2 + bb_bry(fidx2, k2)
+            fidx2 = spr_fidx&(sidx2)
+            fidx2 = spr_frames&(sidx2, fidx2)
+            if bb_cnt&(fidx2) > 0 then begin
+              for k2 = 0 to bb_cnt&(fidx2) - 1
+                box2_x1% = objx2 + bb_tlx&(fidx2, k2)
+                box2_y1% = objy2 + bb_tly&(fidx2, k2)
+                box2_x2% = objx2 + bb_brx&(fidx2, k2)
+                box2_y2% = objy2 + bb_bry&(fidx2, k2)
 
                 gosub check_box_collision
               next k2
@@ -634,11 +644,11 @@ bank 0
       get#2, xx : chr_height%(k) = xx and 255
       get#2, xx, yy
       char_idx%(k) = (xx and 255) + (yy and 255) * 256
-      get#2, xx : bb_cnt(k) = xx and 255
-      if bb_cnt(k) > 0 then begin
-        for kk = 0 to bb_cnt(k) - 1
-          get#2, xx, yy : bb_tlx(k,kk) = xx and 255 : bb_tly(k,kk) = yy and 255
-          get#2, xx, yy : bb_brx(k,kk) = xx and 255 : bb_bry(k,kk) = yy and 255
+      get#2, xx : bb_cnt&(k) = xx and 255
+      if bb_cnt&(k) > 0 then begin
+        for kk = 0 to bb_cnt&(k) - 1
+          get#2, xx, yy : bb_tlx&(k,kk) = xx and 255 : bb_tly&(k,kk) = yy and 255
+          get#2, xx, yy : bb_brx&(k,kk) = xx and 255 : bb_bry&(k,kk) = yy and 255
         next kk
       bend
 
@@ -672,20 +682,20 @@ bank 0
 .draw_bounding_boxes
 '-------------------
   for fidx = 0 to frame_count% - 1
-    if bb_cnt(fidx) > 0 then begin
-      for k = 0 to bb_cnt(fidx) - 1
+    if bb_cnt&(fidx) > 0 then begin
+      for k = 0 to bb_cnt&(fidx) - 1
 
-        for cx = bb_tlx(fidx, k) to bb_brx(fidx, k)
-          cy = bb_tly(fidx, k)
+        for cx = bb_tlx&(fidx, k) to bb_brx&(fidx, k)
+          cy = bb_tly&(fidx, k)
           gosub plot_pixel
-          cy = bb_bry(fidx, k)
+          cy = bb_bry&(fidx, k)
           gosub plot_pixel
         next cx
 
-        for cy = bb_tly(fidx, k) to bb_bry(fidx, k)
-          cx = bb_tlx(fidx, k)
+        for cy = bb_tly&(fidx, k) to bb_bry&(fidx, k)
+          cx = bb_tlx&(fidx, k)
           gosub plot_pixel
-          cx = bb_brx(fidx, k)
+          cx = bb_brx&(fidx, k)
           gosub plot_pixel
         next cy
 
