@@ -7,7 +7,9 @@ ZEROPTR = $1c
 ONEPTR = $29
   PTR2 = $29
 FOURPTR = $18
+  PTR3 = $18
 CLRPTR = $20
+  PTR4 = $20
 
 // for megaplot (some overlap)
 COLRBASE = $0000 // Fixed to Bank ff8
@@ -47,6 +49,138 @@ OP_FILL = 3
 
 // MACROS
 // ======
+!macro get_indexed_val8_in_multidim_dptr .outv8, .array, .d1size, .d1idxv8, .d2idxv8 {
+  +prepare_dptr_to_array PTR1, $0001, .array
+  +inc_multidim_dptr_by_v8 PTR1, .d1size, .d2idxv8
+  ldz .d1idxv8
+  +set_v8_to_val_dptr .outv8, PTR1
+}
+
+!macro set_indexed_val8_in_multidim_dptr_to_v8 .array, .d1size, .d1idxv8, .d2idxv8, .v8in {
+  +prepare_dptr_to_array PTR1, $0001, .array
+  +inc_multidim_dptr_by_chunkv8_and_v8 PTR1, .d1size, .d2idxv8
+  ldz .d1idxv8
+  +set_val_dptr_to_v8 PTR1, .v8in
+}
+
+!macro inc_multidim_dptr_by_v8 .dptr, .chunksize, .var8 {
+  +set16 inputw1, .chunksize
+  +copy8to16 inputw2, .var8
+  +multiply16 inputw1, inputw2, outputw
+  +add32v16 .dptr, outputw
+}
+
+!macro inc_multidim_dptr_by_chunkv8_and_v8 .dptr, .chunksizev8, .var8 {
+  +copy16 inputw1, .chunksizev8
+  +copy8to16 inputw2, .var8
+  +multiply16 inputw1, inputw2, outputw
+  +add32v16 .dptr, outputw
+}
+
+!macro read_v8_from_dptr_and_inc .dptr, .var8 {
+  +copy32 PTR1, .dptr
+  ldz #$00
+  +set_v8_to_val_dptr .var8, .dptr
+  +inc32 PTR1
+  +copy32 .dptr, PTR1
+}
+
+!macro read_v16_from_dptr_and_inc .dptr, .var16 {
+  +copy32 PTR1, .dptr
+  ldz #$00
+  +set_v8_to_val_dptr .var16, PTR1
+  inz
+  +set_v8_to_val_dptr .var16+1, PTR1
+  +inc32 PTR1
+  +inc32 PTR1
+
+  +copy32 .dptr, PTR1
+}
+
+!macro set_v8_to_val_dptr .var8, .dptr {
+  +copy32 PTR1, .dptr
+  lda [PTR1],z
+  sta .var8
+}
+
+!macro set_val_dptr_to_v8 .dptr, .var8 {
+  lda .var8
+  sta [.dptr],z
+}
+
+!macro prepare_dptr_to_array .dptr, .bank, .array {
+  +set16 .dptr+2, .bank
+  +copy16 .dptr, .array
+}
+
+!macro prepare_dptr_to_array_at_byte_idx_v8 .dptr, .bank, .array, .byte_idx_v8 {
+  +prepare_dptr_to_array .dptr, .bank
+  +add32v8 .dptr, .byte_idx_v8
+}
+
+!macro add16v8 .var16, .var8 {
+  clc
+  lda .var16
+  adc .var8
+  sta .var16
+
+  lda .var16+1
+  adc #$00
+  sta .var16+1
+}
+
+!macro add32v8 var32, var8 {
+  clc
+  lda .var32
+  adc .var8
+  sta .var32
+
+  lda .var32+1
+  adc #$00
+  sta .var32+1
+
+  lda .var32+2
+  adc #$00
+  sta .var32+2
+
+  lda .var32+3
+  adc #$00
+  sta .var32+3
+}
+
+!macro add32v16 .var32, .var16 {
+  clc
+  lda .var32
+  adc .var16
+  sta .var32
+
+  lda .var32+1
+  adc .var16+1
+  sta .var32+1
+
+  lda .var32+2
+  adc #$00
+  sta .var32+2
+
+  lda .var32+3
+  adc #$00
+  sta .var32+3
+}
+
+!macro prepare_oneptr_to_word_idx .idx {
+  // prepare one pointer
+  lda #$00
+  sta ONEPTR+3
+  lda #$01
+  sta ONEPTR+2
+
+  // let z hold the byte-offset to the array we need
+  lda .idx
+  clc
+  rol
+  taz
+}
+
 !macro cmp8v8 .var1, .var2 {
   lda .var1
   cmp .var2
@@ -55,6 +189,25 @@ OP_FILL = 3
 !macro cmp8 .var, .val {
   lda .var
   cmp #.val
+}
+
+!macro lsl8_by_v8 .var, .v8 {
+  phx
+  ldx .v8
+  lda .var
+-:
+  cpx #$00
+  beq +
+
+  clc
+  rol
+
+  dex
+  bra -
+
++:
+  sta .var
+  plx
 }
 
 !macro lsl8_by .var, .cnt {
@@ -125,9 +278,9 @@ OP_FILL = 3
 
 !macro inc32 .var32 {
     inw .var32
-    bne +
+    bne .skip
     inw .var32+2
-+:
+.skip:
 }
 
 !macro prepvar16 .array, .var {
@@ -161,6 +314,17 @@ OP_FILL = 3
 	sta .dest
 	lda .src+1
 	sta .dest+1
+}
+
+!macro copy32 .dest, .src {
+	lda .src
+	sta .dest
+	lda .src+1
+	sta .dest+1
+	lda .src+2
+	sta .dest+2
+	lda .src+3
+	sta .dest+3
 }
 
 !macro copy8to16 .dest, .src {
@@ -451,12 +615,12 @@ OP_FILL = 3
 * = $7e00
 
 // draw-objects vars
-array_objx: !word $00           // 7E00
-array_objy: !word $00           // 7E02
-array_chr_width: !word $00      // 7E04
-array_chr_height: !word $00     // 7E06
-array_char_idx: !word $00       // 7E08
-array_stage_x_offs: !word $00   // 7E0A
+array_objx: !word $00           // 7E00  (spr_ox%[])
+array_objy: !word $00           // 7E02  (spr_oy%[])
+array_chr_width: !word $00      // 7E04  (chr_width%[])
+array_chr_height: !word $00     // 7E06  (chr_height%[])
+array_char_idx: !word $00       // 7E08  (char_idx%[])
+array_stage_x_offs: !word $00   // 7E0A  (stage_x_offs%[])
 spr_count: !byte $00            // 7E0C
 
 // draw-text vars
@@ -478,6 +642,16 @@ chr_width: !byte $00            // 7E16
 chr_height: !byte $00           // 7E17
 char_idx: !word $00             // 7E18
 
+array_spr_fidx: !word $00       // 7E1A  (spr_fidx&[])
+array_spr_frames: !word $00     // 7E1C  (spr_frames&(sidx, sfidx)
+array_bb_cnt: !word $00         // 7E1E  (bb_cnt&[])
+array_bb_tlx: !word $00         // 7E20  (bb_tlx&[][])
+array_bb_tly: !word $00         // 7E22  (bb_tly&[][])
+array_bb_brx: !word $00         // 7E24  (bb_brx&[][])
+array_bb_bry: !word $00         // 7E26  (bb_bry&[][])
+array_spr_collide: !word $00    // 7E28  (spr_collide&[][])
+
+
 // ROUTINES
 // ========
 * = $7f00
@@ -491,6 +665,223 @@ char_idx: !word $00             // 7E18
   jmp draw_frame_contents  // 7F15
   jmp draw_frame           // 7F18
   jmp preserve_data_behind_pane  // 7F1B
+  jmp check_box_collisions  // 7F1E
+
+
+//------------------
+check_box_collisions:
+//------------------
+//  old_sidx = sidx
+//
+    // prepare sidx-related pointers
+    +prepare_dptr_to_array dptr_spr_ox, $0001, array_objx
+    +prepare_dptr_to_array dptr_spr_oy, $0001, array_objy
+    +prepare_dptr_to_array dptr_spr_fidx, $0001, array_spr_fidx
+
+//  for sidx = 0 to spr_count - 1
+    +set8 sidx, $00
+.lp_sidx:
+//    objx = spr_ox%(sidx)
+//    objy = spr_oy%(sidx)
+      +read_v16_from_dptr_and_inc dptr_spr_ox, objx
+      +read_v16_from_dptr_and_inc dptr_spr_oy, objy
+
+      // prepare sidx2-related pointers
+      +prepare_dptr_to_array dptr_spr_ox2, $0001, array_objx
+      +prepare_dptr_to_array dptr_spr_oy2, $0001, array_objy
+
+//    sfidx = spr_fidx&(sidx)
+      +prepare_dptr_to_array PTR1, $0001, array_spr_fidx
+      ldz sidx
+      +set_v8_to_val_dptr sfidx, PTR1
+
+//    fidx = spr_frames&(sidx, sfidx)
+      +prepare_dptr_to_array PTR1, $0001, array_spr_frames
+      +inc_multidim_dptr_by_v8 PTR1, 101, sfidx
+      ldz sidx
+      +set_v8_to_val_dptr fidx, PTR1
+
+      // prepare bb_cnt = array_bb_cnt[fidx]
+      +prepare_dptr_to_array dptr_bb_cnt, $0001, array_bb_cnt
+      ldz fidx
+      +set_v8_to_val_dptr bb_cnt, dptr_bb_cnt
+
+//    for sidx2 = 0 to spr_count - 1
+      +set8 sidx2, $00
+.lp_sidx2:
+//      collision_flag = 0
+        +set8 collision_flag, $00
+
+//      if sidx <> sidx2 then begin
+        +cmp8v8 sidx, sidx2
+        lbeq .skip_box_check2
+
+//        objx2 = spr_ox%(sidx2)
+//        objy2 = spr_oy%(sidx2)
+          +read_v16_from_dptr_and_inc dptr_spr_ox2, objx2
+          +read_v16_from_dptr_and_inc dptr_spr_oy2, objy2
+
+//        if bb_cnt&(fidx) > 0 then begin
+          +cmp8 bb_cnt, $00
+          lbeq .skip_box_check
+
+//        sfidx2 = spr_fidx&(sidx2)
+          +prepare_dptr_to_array PTR1, $0001, array_spr_fidx
+          ldz sidx2
+          +set_v8_to_val_dptr sfidx2, PTR1
+
+//        fidx2 = spr_frames&(sidx2, sfidx2)
+          +get_indexed_val8_in_multidim_dptr fidx2, array_spr_frames, 101, sidx2, sfidx2
+
+          // prepare bb_cnt = array_bb_cnt[fidx]
+          +prepare_dptr_to_array dptr_bb_cnt, $0001, array_bb_cnt
+          ldz fidx2
+          +set_v8_to_val_dptr bb_cnt2, dptr_bb_cnt
+      
+//          for k1 = 0 to bb_cnt&(fidx) - 1
+            +set8 k1, $00
+.lp_k1
+//            box1_x1% = objx + bb_tlx&(fidx, k1)
+              +get_indexed_val8_in_multidim_dptr tmp, array_bb_tlx, 101, fidx, k1
+              +copy16 box1_x1, objx
+              +add16v8 box1_x1, tmp
+
+//            box1_y1% = objy + bb_tly&(fidx, k1)
+              +get_indexed_val8_in_multidim_dptr tmp, array_bb_tly, 101, fidx, k1
+              +copy16 box1_y1, objy
+              +add16v8 box1_y1, tmp
+
+//            box1_x2% = objx + bb_brx&(fidx, k1)
+              +get_indexed_val8_in_multidim_dptr tmp, array_bb_brx, 101, fidx, k1
+              +copy16 box1_x2, objx
+              +add16v8 box1_x2, tmp
+
+//            box1_y2% = objy + bb_bry&(fidx, k1)
+              +get_indexed_val8_in_multidim_dptr tmp, array_bb_bry, 101, fidx, k1
+              +copy16 box1_y2, objy
+              +add16v8 box1_y2, tmp
+
+//            if bb_cnt&(fidx2) > 0 then begin
+              +cmp8 bb_cnt2, $00
+              lbeq .skip_box_check_inner
+
+//              for k2 = 0 to bb_cnt&(fidx2) - 1
+                +set8 k2, $00
+.lp_k2:
+//                box2_x1% = objx2 + bb_tlx&(fidx2, k2)
+                  +get_indexed_val8_in_multidim_dptr tmp, array_bb_tlx, 101, fidx2, k2
+                  +copy16 box2_x1, objx2
+                  +add16v8 box2_x1, tmp
+
+//                box2_y1% = objy2 + bb_tly&(fidx2, k2)
+                  +get_indexed_val8_in_multidim_dptr tmp, array_bb_tly, 101, fidx2, k2
+                  +copy16 box2_y1, objy2
+                  +add16v8 box2_y1, tmp
+
+//                box2_x2% = objx2 + bb_brx&(fidx2, k2)
+                  +get_indexed_val8_in_multidim_dptr tmp, array_bb_brx, 101, fidx2, k2
+                  +copy16 box2_x2, objx2
+                  +add16v8 box2_x2, tmp
+
+//                box2_y2% = objy2 + bb_bry&(fidx2, k2)
+                  +get_indexed_val8_in_multidim_dptr tmp, array_bb_bry, 101, fidx2, k2
+                  +copy16 box2_y2, objy2
+                  +add16v8 box2_y2, tmp
+
+//                gosub check_box_collision
+                  jsr check_box_collision
+
+//              next k2
+                inc k2
+                +cmp8v8 k2, bb_cnt2
+                lbne .lp_k2
+
+//            bend
+.skip_box_check_inner:
+
+//          next k1
+            inc k1
+            +cmp8v8 k1, bb_cnt
+            lbne .lp_k1
+
+//        bend
+.skip_box_check:
+
+//        spr_collide&(sidx, sidx2) = collision_flag
+          +set_indexed_val8_in_multidim_dptr_to_v8 array_spr_collide, spr_count, sidx, sidx2, collision_flag
+//
+//      bend
+.skip_box_check2:
+
+//    next sidx2
+      inc sidx2
+      +cmp8v8 sidx2, spr_count
+      lbne .lp_sidx2
+//      
+//  next sidx
+    inc sidx
+    +cmp8v8 sidx, spr_count
+    lbne .lp_sidx
+
+//  sidx = old_sidx
+//
+//  if collision_flag = 1 then begin
+//    border 7
+//  bend : else begin
+//    border 0
+//  bend
+//
+//  return
+    rts
+
+
+//-----------------
+check_box_collision:
+//-----------------
+//  if not (box2_x1% > box1_x2% or {x5F}
+//          box2_x2% < box1_x1% or {x5F}
+//          box2_y1% > box1_y2% or {x5F}
+//          box2_y2% < box1_y1%) then {x5F}
+  +cmp8v8 box1_x2, box2_x1
+  bcc .skip
+  +cmp8v8 box2_x2, box1_x1
+  bcc .skip
+  +cmp8v8 box1_y2, box2_y1
+  bcc .skip
+  +cmp8v8 box2_y2, box1_y1
+  bcc .skip
+
+//  begin
+//    'tx = 0 : ty = 0 : a$ = "spr" + str$(sidx) + ", spr" + str$(sidx2)
+//    'gosub draw_text
+//
+//    'ty = 1 : a$ = "fidx="+str$(fidx) + ", fidx2="+str$(fidx2)
+//    'gosub draw_text
+//
+//    'ty = 2
+//    'a$ = "(" + str$(box1_x1%) + "," + str$(box1_y1%) + ") - ("
+//    'a$ = a$ + str$(box1_x2%) + "," + str$(box1_y2%) + ")"
+//    'gosub draw_text
+//
+//    'ty = 3
+//    'a$ = "(" + str$(box2_x1%) + "," + str$(box2_y1%) + ") - ("
+//    'a$ = a$ + str$(box2_x2%) + "," + str$(box2_y2%) + ")"
+//    'gosub draw_text
+//
+//    'get key a$
+
+//    collision_flag = (2 ^ k2) or collision_flag
+      +set8 tmp, $01
+      +lsl8_by_v8 tmp, k2
+      lda collision_flag
+      ora tmp
+      sta collision_flag
+
+.skip:
+//  bend
+
+//  return
+    rts
 
 
 //--------
@@ -1399,17 +1790,7 @@ draw_objects:
 //----------
 prepare_vars:
 //----------
-  // prepare one pointer
-  lda #$00
-  sta ONEPTR+3
-  lda #$01
-  sta ONEPTR+2
-
-  // let z hold the byte-offset to the array we need
-  lda sidx
-  clc
-  rol
-  taz
+  +prepare_oneptr_to_word_idx sidx
 
   +prepvar16 array_objx, objx
   +prepvar16 array_objy, objy
@@ -1948,6 +2329,7 @@ tmpx: !byte $00
 tmpy: !byte $00
 tempval: !word $00
 sidx: !byte $00
+sidx2: !byte $00
 
 objx: !word $00
 objy: !word $00
@@ -1964,6 +2346,42 @@ kptr: !byte $00
 // draw_pane
 xx: !byte $00
 loc: !word $00
+
+// collision stuff
+collision_flag: !byte $00
+objx2: !word $00
+objy2: !word $00
+sfidx: !byte $00
+sfidx2: !byte $00
+fidx: !byte $00
+fidx2: !byte $00
+
+bb_cnt: !byte $00
+bb_cnt2: !byte $00
+
+k1: !byte $00
+k2: !byte $00
+
+box1_x1: !word $00
+box1_y1: !word $00
+box1_x2: !word $00
+box1_y2: !word $00
+
+box2_x1: !word $00
+box2_y1: !word $00
+box2_x2: !word $00
+box2_y2: !word $00
+
+dptr_spr_ox: !word $00, $00
+dptr_spr_oy: !word $00, $00
+
+dptr_spr_ox2: !word $00, $00
+dptr_spr_oy2: !word $00, $00
+
+dptr_spr_fidx: !word $00, $00
+dptr_spr_frames: !word $00, $00
+
+dptr_bb_cnt: !word $00, $00
 
 dma_screen:
 +edma OP_FILL, WIDTH * 50, 32, $00, $0800, $04, $00
