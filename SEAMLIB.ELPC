@@ -82,7 +82,7 @@ trap runstop_trapper
 '----
   gosub init
 
-  gosub clrscreen
+  gosub title_screen
 
   for sidx = 0 to spr_count - 1
     gosub stage_object
@@ -93,6 +93,38 @@ trap runstop_trapper
 
   end
 
+
+'------------
+.title_screen
+'------------
+  gosub clrscreen
+
+  tclr = 0 : tx = 0 : ty = 0
+  a$ = "======"
+  gosub draw_text
+
+  ty = ty + 1 : a$ = "SPRING"
+  gosub draw_text
+
+  ty = ty + 1 : a$ = "======  A game by Moana and Gurce"
+  gosub draw_text
+
+  ty = ty + 2 : a$ = "Made using the 'seamlib' library."
+  gosub draw_text
+
+  ty = ty +2 : a$ = "Joystick port 2"
+  gosub draw_text
+
+  ty = ty + 2 : a$ = "Press any key to start"
+  gosub draw_text
+
+  k = fre(1)  ' garbage collect
+
+  get key a$
+
+  gosub clrscreen
+
+  return
 
 
 '----
@@ -189,90 +221,6 @@ trap runstop_trapper
 
   poke $d021, 14
   poke $d020, 0
-
-  ' $1000 = solid fcm char
-  for k = 0 to 63
-    poke $40000 + k, $ff
-  next k
-
-  ' $1001 = box char
-  for k = 0 to 63
-    if int(k / 8) = 0 or int(k / 8) = 7 then poke $40040 + k, $ff:goto nxt
-    if mod(k, 8) = 0 or mod(k, 8) = 7 then poke $40040 + k, $ff:goto nxt
-    poke $40040 + k, $00
-.nxt
-  next k
-
-  ' $1002 = tl box
-  idx = 0
-  for y = 0 to 7
-    for x = 0 to 7
-    value = $ff
-    if y = 0 then value = $01
-    if x = 0 then value = $01
-    if y = 7 and x = 7 then value = $01
-    poke $40080 + idx, value
-    idx = idx + 1
-    next x
-  next y
-
-  ' $1003 = t box
-  idx = 0
-  for y = 0 to 7
-    for x = 0 to 7
-      value = $ff
-      if y = 0 then value = $01
-      if y = 7 and x = 7 then value = $01
-      poke $400c0 + idx, value
-      idx = idx + 1
-    next x
-  next y
-
-  ' $1004 = l box
-  idx = 0
-  for y = 0 to 7
-    for x = 0 to 7
-      value = $ff
-      if x = 0 then value = $01
-      if y = 7 and x = 7 then value = $01
-      poke $40100 + idx, value
-      idx = idx + 1
-    next x
-  next y
-
-  ' $1005 = m box
-  idx = 0
-  for y = 0 to 7
-    for x = 0 to 7
-      value = $ff
-      if y = 7 and x = 7 then value = $01
-      poke $40140 + idx, value
-      idx = idx + 1
-    next x
-  next y
-
-  ' $1006 = l line
-  idx = 0
-  for y = 0 to 7
-    for x = 0 to 7
-      value = $00
-      if x = 0 then value = $01
-      poke $40180 + idx, value
-      idx = idx + 1
-    next x
-  next y
-
-  ' $1007 = t line
-  idx = 0
-  for y = 0 to 7
-    for x = 0 to 7
-      value = $00
-      if y = 0 then value = $01
-      poke $401c0 + idx, value
-      idx = idx + 1
-    next x
-  next y
-
 
   return
 
