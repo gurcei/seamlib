@@ -71,7 +71,7 @@ OP_FILL = 3
 }
 
 !macro inc_multidim_dptr_by_chunkv8_and_v8 .dptr, .chunksizev8, .var8 {
-  +copy16 inputw1, .chunksizev8
+  +copy8to16 inputw1, .chunksizev8
   +copy8to16 inputw2, .var8
   +multiply16 inputw1, inputw2, outputw
   +add32v16 .dptr, outputw
