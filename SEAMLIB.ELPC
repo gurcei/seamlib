@@ -29,6 +29,7 @@
 #declare box1_x1%, box1_y1%, box1_x2%, box1_y2%
 #declare box2_x1%, box2_y1%, box2_x2%, box2_y2%
 #declare collision_flag, fidx2
+#declare aptr_lo, aptr_hi
 
 #declare debug_bb = 1
 
@@ -104,6 +105,9 @@ trap runstop_trapper
   bload "asmhelper"
   bank 128
   key off
+
+  aptr_lo = pointer(a$) and $ff
+  aptr_hi = pointer(a$) / 256
 
   ' prepare interface vars for assembly
   bank 0
@@ -328,7 +332,7 @@ trap runstop_trapper
     wpoke $40800 + y * WIDTH + 160 + stage_x_offs%(sidx) * 2 + (spr_chr_width%(sidx) + 1) * 2, 80 * 8
   next y
 
-  gosub draw_object
+  ' gosub draw_object
 
   return
 
@@ -337,7 +341,7 @@ trap runstop_trapper
 .user_input
 '----------
   do while 1
-    ' gosub draw_coords
+    gosub draw_coords
 
     gosub draw_objects
 
@@ -384,6 +388,11 @@ trap runstop_trapper
   gosub draw_text
   tclr = 0 : tx = 5 : ty = 5
   a$ = "x =" + str$(spr_ox%(sidx)) + ", y =" + str$(spr_oy%(sidx)) + "     "
+  
+  ' force garbage collection now, so that it doesn't trigger
+  ' during sys call and crash (due to my CLRPTR=$20 being a far-ptr in basic)
+  k = fre(1)
+
   gosub draw_text
   return
 
@@ -410,220 +419,20 @@ trap runstop_trapper
 
   return
 
-  ' TODO: remove below once sys call above works
-
-  old_sidx = sidx
-
-  for sidx = 0 to spr_count - 1
-    objx = spr_ox%(sidx)
-    objy = spr_oy%(sidx)
-  
-    for sidx2 = 0 to spr_count - 1
-      collision_flag = 0
-      if sidx <> sidx2 then begin
-        objx2 = spr_ox%(sidx2)
-        objy2 = spr_oy%(sidx2)
-
-        fidx = spr_fidx&(sidx)
-        fidx = spr_frames&(sidx, fidx)
-
-        if bb_cnt&(fidx) > 0 then begin
-          for k1 = 0 to bb_cnt&(fidx) - 1
-            box1_x1% = objx + bb_tlx&(fidx, k1)
-            box1_y1% = objy + bb_tly&(fidx, k1)
-            box1_x2% = objx + bb_brx&(fidx, k1)
-            box1_y2% = objy + bb_bry&(fidx, k1)
-
-            fidx2 = spr_fidx&(sidx2)
-            fidx2 = spr_frames&(sidx2, fidx2)
-            if bb_cnt&(fidx2) > 0 then begin
-              for k2 = 0 to bb_cnt&(fidx2) - 1
-                box2_x1% = objx2 + bb_tlx&(fidx2, k2)
-                box2_y1% = objy2 + bb_tly&(fidx2, k2)
-                box2_x2% = objx2 + bb_brx&(fidx2, k2)
-                box2_y2% = objy2 + bb_bry&(fidx2, k2)
-
-                gosub check_box_collision
-              next k2
-            bend
-          next k1
-        bend
-
-        spr_collide&(sidx, sidx2) = collision_flag
-
-      bend
-    next sidx2
-      
-  next sidx
-
-  sidx = old_sidx
-
-  if collision_flag = 1 then begin
-    border 7
-  bend : else begin
-    border 0
-  bend
-
-  return
-
-
-'-------------------
-.check_box_collision
-'-------------------
-  if not (box2_x1% > box1_x2% or {x5F}
-          box2_x2% < box1_x1% or {x5F}
-          box2_y1% > box1_y2% or {x5F}
-          box2_y2% < box1_y1%) then {x5F}
-  begin
-    'tx = 0 : ty = 0 : a$ = "spr" + str$(sidx) + ", spr" + str$(sidx2)
-    'gosub draw_text
-
-    'ty = 1 : a$ = "fidx="+str$(fidx) + ", fidx2="+str$(fidx2)
-    'gosub draw_text
-
-    'ty = 2
-    'a$ = "(" + str$(box1_x1%) + "," + str$(box1_y1%) + ") - ("
-    'a$ = a$ + str$(box1_x2%) + "," + str$(box1_y2%) + ")"
-    'gosub draw_text
-
-    'ty = 3
-    'a$ = "(" + str$(box2_x1%) + "," + str$(box2_y1%) + ") - ("
-    'a$ = a$ + str$(box2_x2%) + "," + str$(box2_y2%) + ")"
-    'gosub draw_text
-
-    'get key a$
-
-    collision_flag = (2 ^ k2) or collision_flag
-  bend
-
-  return
-
-
-'-----------
-.draw_object
-'-----------
-'  bank 0
-'  wpoke $7e00, spr_ox%(fidx)
-'  wpoke $7e02, spr_oy%(fidx)
-'  poke $7e04, chr_width%(fidx)
-'  poke $7e05, chr_height%(fidx)
-'  wpoke $7e06, char_idx%(fidx)
-'  wpoke $7e08, stage_x_offs%(fidx)
-'  poke $7e0a, frame_count%
-'  bank 128 : border 7 : bank 0
-
-  objx = spr_ox%(sidx)
-  objy = spr_oy%(sidx)
-  vsync 250
-  border 3
-
-  yy = int(objy / 8)
-  yybot = yy + chr_height%(fidx) ' - 1
-  offsy = mod(objy, 8)
-
-  ' clear prior position (if needbe)
-  if oldyy <> INVALID and yy <> oldyy then begin
-    minyy = oldyy
-    maxyy = oldyy + chr_height%(fidx) ' - 1
-    if minyy < yy and yy < maxyy then maxyy = yy - 1
-    if minyy < yybot and yybot < maxyy then minyy = yybot + 1
-
-    ' hide these rows off-screen
-    for y = minyy to maxyy
-      wpoke $40800 + y * WIDTH + stage_x_offs%(fidx) * 2 + 160, 80 * 8 
-    next y
-  bend
-
-  vsync 250
-  border 2
-
-  ' draw chars on desired yrows, and at right objx position
-  idx = char_idx%(fidx)
-  tmpx = chr_width%(fidx) - 1
-  tmpy = chr_height%(fidx) - 1
-  for x = 0 to tmpx
-    for y = 0 to tmpy
-      k = $40800 + (yy + y) * WIDTH + stage_x_offs%(fidx) * 2 + 162 + x * 2
-      wpoke k, idx
-
-      ' copy last y-line an extra line below (to help with y scrolling)
-      if y = tmpy then begin
-        wpoke k + WIDTH, idx
-      bend
-
-      idx = idx + 1
-    next y
-  next x
-
-  ' handle negative x
-  x = objx
-  if objx < 0 then x = 1024 + objx
-
-  k = x + (offsy * 32 + 16) * 256
-
-  ' set initial rowmask
-  tmp = $ff80000 + yy * WIDTH + stage_x_offs%(fidx) * 2 + 160
-  poke tmp, %10011000
-  poke tmp + 1, 255 << offsy and 255
-
-
-  ' set initial gotox char
-  for y = yy to yy + tmpy
-    tmp = y * WIDTH + stage_x_offs%(fidx) * 2 + 160
-    if y <> yy then begin
-      poke $ff80000 + tmp, %10010000
-    bend
-    wpoke $40800 + tmp, k
-  next y
-
-  ' set final yoffs
-  k = x + ( ((8-offsy) and 7) * 32) * 256
-  wpoke $40800 + yybot * WIDTH + stage_x_offs%(fidx) * 2 + 160, k
-
-  ' set final rowmask
-  tmp = $ff80000 + yybot * WIDTH + stage_x_offs%(fidx) * 2 + 160
-  poke tmp, %10011000
-  poke tmp + 1, 255 >> (8 - offsy) and 255
-
-  oldyy = yy
-
-  border 0
-  return
-
 
 '---------
 .draw_text
 '---------
-  idx = 0
-  rev_flag = 0
-  for k = 1 to len(a$)
-    chr = asc(mid$(a$,k,1))
-    if mid$(a$,k,1) = KEY_REV_ON then rev_flag = 1 : goto nxtdt
-    if mid$(a$,k,1) = KEY_REV_OFF then rev_flag = 0 : goto nxtdt
+  bank 0
+  poke $7e0d, tx
+  poke $7e0e, ty
+  poke $7e0f, tclr
+  sys $7f03, 0, aptr_lo, aptr_hi
+  bank 128
 
-    gosub petscii_to_screencode
-
-    if rev_flag = 1 then chr = chr or $80
-
-    wpoke $40800 + ty * WIDTH + (tx + idx) * 2, chr
-    poke $ff80000 + ty * WIDTH + (tx + idx) * 2 + 1, tclr
-    idx = idx + 1
-.nxtdt
-  next k
   return
 
-
-'---------------------
-.petscii_to_screencode
-'---------------------
-  if chr>=$00 and chr<=$1f then chr = chr or $80 : return
-  if chr>=$20 and chr<=$3f then return
-  if chr>=$40 and chr<=$5f then chr=chr and $bf : return
-  if chr>=$60 and chr<=$7f then chr=chr and $df : return
-  if chr>=$80 and chr<=$9f then chr=chr or $40 : return
-  if chr>=$a0 and chr<=$bf then chr=(chr and $7f) or $40 : return
-  if chr>=$c0 and chr<=$fe then chr=chr and $7f : return
-  return
+  ' the above works, but occasionally trips up on basic garbage collection
 
 
 '---------
