@@ -1833,8 +1833,8 @@ draw_object:
 //   - word stage_x_offs@1608
 
 //  yy = int(objy / 8)
-    lda #$02
-    sta $d020
+    //lda #$02
+    //sta $d020
 
     clc
     lda stage_x_offs

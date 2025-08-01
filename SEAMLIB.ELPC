@@ -1,5 +1,6 @@
 #output "seamlib"
 
+#define SPR_MAX = 9 - 1
 
 '--------
 .declares
@@ -20,7 +21,7 @@
 #declare spr_frame_count%(100), spr_frames&(100,20), spr_visible%(100)
 #declare spr_fidx&(100), stage_x_offs%(100), spr_count
 #declare spr_ox%(100), spr_oy%(100)
-#declare spr_collide&(7,7)
+#declare spr_collide&(SPR_MAX ,SPR_MAX)
 #declare objx, objy, oldyy, minyy, maxyy, yybot 
 #declare a$, yy, offsy, tmp, tmpx, tmpy
 #declare tclr, tx, ty, rev_flag, chr
@@ -29,9 +30,11 @@
 #declare box1_x1%, box1_y1%, box1_x2%, box1_y2%
 #declare box2_x1%, box2_y1%, box2_x2%, box2_y2%
 #declare collision_flag, fidx2
-#declare aptr_lo, aptr_hi
+#declare aptr_lo, aptr_hi, score, health, radius
 
-#declare debug_bb = 1
+#declare wolf_x(3), wolf_y(3), wolf_vx(3), wolf_vy(3), dx, dy
+
+#declare debug_bb = 0
 
 '-------
 .defines
@@ -62,6 +65,8 @@
 #define F_BANANA = 3
 #define F_WBOTTLE = 4
 #define F_WOLF2 = 5
+#define F_GIRL1 = 6
+#define F_GIRL2 = 7
 
 ' seam sprites
 #define S_CARPET = 0
@@ -72,8 +77,9 @@
 #define S_WOLF2 = 5
 #define S_WOLF3 = 6
 #define S_WOLF4 = 7
+#define S_GIRL = 8
 
-spr_count = 8
+spr_count = SPR_MAX + 1
 
 trap runstop_trapper
 
@@ -89,7 +95,7 @@ trap runstop_trapper
   next sidx
 
   sidx = 0
-  gosub user_input
+  gosub main_game
 
   end
 
@@ -137,6 +143,8 @@ trap runstop_trapper
   bload "asmhelper"
   bank 128
   key off
+
+  print chr$(14);  ' lower-case
 
   aptr_lo = pointer(a$) and $ff
   aptr_hi = pointer(a$) / 256
@@ -194,9 +202,18 @@ trap runstop_trapper
     spr_frames&(S_WOLF1 + k, 0) = F_WOLF1
     spr_frames&(S_WOLF1 + k, 1) = F_WOLF2
   next k
+
+  spr_chr_width%(S_GIRL) = 4
+  spr_chr_height%(S_GIRL) = 4
+  spr_char_idx%(S_GIRL) = char_idx%(F_GIRL1)
+  spr_frame_count%(S_GIRL) = 2
+  spr_frames&(S_GIRL, 0) = F_GIRL1
+  spr_frames&(S_GIRL, 1) = F_GIRL2
   
+  ' keep all sprites off-screen to start with
+  ' that's my simple workaround for now to make them 'invisible'
   for k = 0 to spr_count - 1
-    spr_ox%(k) = k * 6 * 8
+    spr_ox%(k) = 640
     spr_oy%(k) = 10 * 8
   next k
 
@@ -285,11 +302,19 @@ trap runstop_trapper
   return
 
 
-'----------
-.user_input
-'----------
+'---------
+.main_game
+'---------
+  score = 0 : health = 10
+  gosub draw_score
+  gosub draw_energy_bars
+
+  gosub init_level
+
+  k = fre(1)  ' do garbage collection after any string work
+
   do while 1
-    gosub draw_coords
+    ' gosub draw_coords
 
     gosub draw_objects
 
@@ -297,16 +322,120 @@ trap runstop_trapper
 
     gosub check_box_collisions
 
-    get a$
-    if a$ = KEY_LEFT then spr_ox%(sidx) = spr_ox%(sidx) - 1
-    if a$ = KEY_RIGHT then spr_ox%(sidx) = spr_ox%(sidx) + 1
-    if a$ = KEY_UP then spr_oy%(sidx) = spr_oy%(sidx) - 1
-    if a$ = KEY_DOWN then spr_oy%(sidx) = spr_oy%(sidx) + 1
-    if a$ = KEY_MEGA_Q then goto cleanup
+    gosub user_input
 
-    if a$ = "," and sidx > 0 then sidx = sidx - 1
-    if a$ = "." and sidx < spr_count - 1 then sidx = sidx + 1
+    gosub baddie_logic
   loop
+
+  return
+
+
+'----------
+.init_level
+'----------
+  spr_ox%(S_GIRL) = 30
+  spr_oy%(S_GIRL) = 220
+
+  wolf_x(0) = 600
+  wolf_y(0) = 220
+
+  spr_ox%(S_WOLF1) = wolf_x(0)
+  spr_oy%(S_WOLF1) = wolf_y(0)
+
+  wolf_vx(0) = 0
+  wolf_vy(0) = 0
+
+  return
+
+
+'------------
+.baddie_logic
+'------------
+
+  dx = spr_ox%(S_GIRL) - spr_ox%(S_WOLF1)
+  dy = spr_oy%(S_GIRL) - spr_oy%(S_WOLF1)
+
+  radius = sqr(dx*dx + dy*dy)
+
+  if dx <> 0 then dx = .1 * dx / radius ' : else wolf_vx(0) = 0
+  if dy <> 0 then dy = .1 * dy / radius ' : else wolf_vy(0) = 0
+
+  wolf_vx(0) = wolf_vx(0) + dx
+  if wolf_vx(0) > 5 then wolf_vx(0) = 5
+  if wolf_vx(0) < -5 then wolf_vx(0) = -5
+  wolf_vy(0) = wolf_vy(0) + dy
+  if wolf_vy(0) > 5 then wolf_vy(0) = 5
+  if wolf_vy(0) < -5 then wolf_vy(0) = -5
+
+  wolf_x(0) = wolf_x(0) + wolf_vx(0)
+  wolf_y(0) = wolf_y(0) + wolf_vy(0)
+
+  if wolf_x(0) < 0 then wolf_x(0) = 0
+  if wolf_x(0) > 607 then wolf_x(0) = 607
+  if wolf_y(0) < 0 then wolf_y(0) = 0
+  if wolf_y(0) > 367 then wolf_y(0) = 367
+
+  spr_ox%(S_WOLF1) = wolf_x(0)
+  spr_oy%(S_WOLF1) = wolf_y(0)
+
+  return
+
+
+'----------
+.user_input
+'----------
+  get a$
+  
+  if a$ = KEY_LEFT then begin
+    spr_ox%(S_GIRL) = spr_ox%(S_GIRL) - 3
+    if spr_ox%(S_GIRL) < 0 then spr_ox%(S_GIRL) = 0
+  bend
+
+  if a$ = KEY_RIGHT then begin
+    spr_ox%(S_GIRL) = spr_ox%(S_GIRL) + 3
+    if spr_ox%(S_GIRL) > 607 then spr_ox%(S_GIRL) = 607
+  bend
+
+  if a$ = KEY_UP then begin
+    spr_oy%(S_GIRL) = spr_oy%(S_GIRL) - 3
+    if spr_oy%(S_GIRL) < 16 then spr_oy%(S_GIRL) = 16
+  bend
+
+  if a$ = KEY_DOWN then begin
+    spr_oy%(S_GIRL) = spr_oy%(S_GIRL) + 3
+    if spr_oy%(S_GIRL) > 367 then spr_oy%(S_GIRL) = 367
+  bend
+
+  if a$ = KEY_MEGA_Q then goto cleanup
+
+  return
+
+
+'----------
+.draw_score
+'----------
+  tx = 0 : ty = 0 : tclr = 0
+  a$ = "SCORE: " + str$(score)
+  gosub draw_text
+  return
+
+
+'----------------
+.draw_energy_bars
+'----------------
+  tx = 0 : ty = 1 : tclr = 0
+  a$ = "HEALTH: "
+  gosub draw_text
+
+  tx = 8 : tclr = 5
+  a$ = KEY_REV_ON
+  for k = 0 to health - 1
+    a$ = a$ + " "
+  next k
+  a$ = a$ + KEY_REV_OFF + " "
+
+  gosub draw_text
+
   return
 
 
@@ -323,6 +452,12 @@ trap runstop_trapper
       tmp = char_idx%(spr_frames&(S_WOLF1 + k, fidx))
       spr_char_idx%(S_WOLF1 + k) = tmp
     next k
+
+    fidx = spr_fidx&(S_GIRL)
+    fidx = mod(fidx + 1, 2)
+    spr_fidx&(S_GIRL) = fidx
+    tmp = char_idx%(spr_frames&(S_GIRL, fidx))
+    spr_char_idx%(S_GIRL) = tmp
   bend
 
   return
@@ -349,7 +484,7 @@ trap runstop_trapper
 .draw_objects
 '------------
   vsync 250
-  border 3
+'  border 3
   bank 0
 ^^  sys to $7f00, i0
   bank 128
@@ -359,11 +494,11 @@ trap runstop_trapper
 '--------------------
 .check_box_collisions
 '--------------------
-  border 5
+  ' border 5
   bank 0
   sys $7f1e
   bank 128
-  border 0
+  ' border 0
 
   return
 
