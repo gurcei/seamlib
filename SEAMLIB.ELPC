@@ -37,6 +37,8 @@
 #declare pane_x%, pane_y%, pane_width%, pane_height%
 #declare game_over_flag
 
+#declare cycle_start, colour_cycle_flag
+
 #declare debug_bb = 0
 
 '-------
@@ -349,6 +351,20 @@ trap runstop_trapper
 
   if spr_collide&(S_GIRL, S_WBOTTLE) <> 0 then gosub handle_wbottle_collision
 
+  if spr_collide&(S_GIRL, S_CARPET) <> 0 then gosub handle_carpet_collision
+
+  if colour_cycle_flag = 1 then begin
+    sys $7f21, 16
+  bend
+
+  return
+
+
+'-----------------------
+.handle_carpet_collision
+'-----------------------
+    colour_cycle_flag = 1
+    cycle_start = ti
   return
 
 
@@ -478,6 +494,7 @@ trap runstop_trapper
   wolf_vy(0) = 0
 
   game_over_flag = 0
+  colour_cycle_flag = 0
 
   sidx = S_KEY
   gosub spawn_item
@@ -486,6 +503,9 @@ trap runstop_trapper
   gosub spawn_item
 
   sidx = S_WBOTTLE
+  gosub spawn_item
+
+  sidx = S_CARPET
   gosub spawn_item
 
   return
