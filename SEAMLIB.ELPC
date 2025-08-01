@@ -452,30 +452,32 @@ trap runstop_trapper
     k = fre(1)
     spr_ox%(S_WOLF1) = 640
     wolf_die(0) = ti
-    return
-  bend
 
-  health = health - 1
-  gosub draw_energy_bars
-  k = fre(1)
+  bend : else begin
 
-  if health = 0 then begin
-    colour_cycle_flag = 0
-    gosub restore_default_colours
+    health = health - 1
+    gosub draw_energy_bars
+    k = fre(1)
 
-    tclr = 2 : a$ = "You died a gruesome death!"
-    pane_width% = len(a$) + 4
-    pane_height% = 5
-    gosub show_centred_pane
+    if health = 0 then begin
+      colour_cycle_flag = 0
+      gosub restore_default_colours
 
-    sleep 2
+      tclr = 2 : a$ = "You died a gruesome death!"
+      pane_width% = len(a$) + 4
+      pane_height% = 5
+      gosub show_centred_pane
 
-    ' clear keyboard buffer
-    for k = 0 to 16
-      get a$
-    next k
+      sleep 2
+
+      ' clear keyboard buffer
+      for k = 0 to 16
+        get a$
+      next k
             
-    game_over_flag = 1
+      game_over_flag = 1
+
+    bend
 
   bend
   return
@@ -575,11 +577,20 @@ trap runstop_trapper
 '------------
 
   if wolf_die(0) <> 0 then begin
+
     if (ti - wolf_die(0)) > 10 then begin
       sidx = S_WOLF1
       gosub spawn_item
+
+      wolf_x(0) = spr_ox%(S_WOLF1)
+      wolf_y(0) = spr_oy%(S_WOLF1)
+      wolf_vx(0) = 0
+      wolf_vy(0) = 0
+
       wolf_die(0) = 0
     bend
+
+    return
   bend
 
   dx = spr_ox%(S_GIRL) - spr_ox%(S_WOLF1)
@@ -590,20 +601,21 @@ trap runstop_trapper
   if dx <> 0 then dx = .1 * dx / radius ' : else wolf_vx(0) = 0
   if dy <> 0 then dy = .1 * dy / radius ' : else wolf_vy(0) = 0
 
-  wolf_vx(0) = wolf_vx(0) + dx
+  if colour_cycle_flag = 0 then begin
+    wolf_vx(0) = wolf_vx(0) + dx
+    wolf_vy(0) = wolf_vy(0) + dy
+  bend : else : begin
+    wolf_vx(0) = wolf_vx(0) - dx
+    wolf_vy(0) = wolf_vy(0) - dy
+  bend
+
   if wolf_vx(0) > 5 then wolf_vx(0) = 5
   if wolf_vx(0) < -5 then wolf_vx(0) = -5
-  wolf_vy(0) = wolf_vy(0) + dy
   if wolf_vy(0) > 5 then wolf_vy(0) = 5
   if wolf_vy(0) < -5 then wolf_vy(0) = -5
 
-  if colour_cycle_flag = 0 then begin
-    wolf_x(0) = wolf_x(0) + wolf_vx(0)
-    wolf_y(0) = wolf_y(0) + wolf_vy(0)
-  bend : else begin
-    wolf_x(0) = wolf_x(0) - wolf_vx(0)
-    wolf_y(0) = wolf_y(0) - wolf_vy(0)
-  bend
+  wolf_x(0) = wolf_x(0) + wolf_vx(0)
+  wolf_y(0) = wolf_y(0) + wolf_vy(0)
 
   if wolf_x(0) < 0 then wolf_x(0) = 0
   if wolf_x(0) > 607 then wolf_x(0) = 607
