@@ -341,31 +341,59 @@ trap runstop_trapper
 '----------
 .game_logic
 '----------
-
   if spr_collide&(S_GIRL, S_WOLF1) <> 0 then gosub handle_wolf_collision
 
-  if spr_collide&(S_GIRL, S_KEY) <> 0 then begin
-    score = score + 100
-    gosub draw_score
-    k = fre(1)  ' do garbage collection after any string work
+  if spr_collide&(S_GIRL, S_KEY) <> 0 then gosub handle_key_collision
 
-    sidx = S_KEY
-    gosub spawn_item
-  bend
+  if spr_collide&(S_GIRL, S_BANANA) <> 0 then gosub handle_banana_collision
 
-  if spr_collide&(S_GIRL, S_BANANA) <> 0 then begin
-    score = score + 200
-    health = health + 2
+  if spr_collide&(S_GIRL, S_WBOTTLE) <> 0 then gosub handle_wbottle_collision
 
-    gosub draw_score
-    gosub draw_energy_bars
+  return
 
-    k = fre(1)  ' do garbage collection after any string work
 
-    sidx = S_BANANA
-    gosub spawn_item
-  bend
+'------------------------
+.handle_wbottle_collision
+'------------------------
+  score = score + 400
+  health = health + 4
 
+  gosub draw_score
+  gosub draw_energy_bars
+
+  k = fre(1)  ' do garbage collection after any string work
+
+  sidx = S_WBOTTLE
+  gosub spawn_item
+
+  return
+
+
+'-----------------------
+.handle_banana_collision
+'-----------------------
+  score = score + 200
+  health = health + 2
+
+  gosub draw_score
+  gosub draw_energy_bars
+
+  k = fre(1)  ' do garbage collection after any string work
+
+  sidx = S_BANANA
+  gosub spawn_item
+  return
+
+
+'--------------------
+.handle_key_collision
+'--------------------
+  score = score + 100
+  gosub draw_score
+  k = fre(1)  ' do garbage collection after any string work
+
+  sidx = S_KEY
+  gosub spawn_item
   return
 
 
@@ -457,6 +485,9 @@ trap runstop_trapper
   sidx = S_BANANA
   gosub spawn_item
 
+  sidx = S_WBOTTLE
+  gosub spawn_item
+
   return
 
 
@@ -464,7 +495,7 @@ trap runstop_trapper
 .spawn_item
 '----------
   spr_ox%(sidx) = rnd(1)*600
-  spr_oy%(sidx) = 32 +rnd(1)*360
+  spr_oy%(sidx) = 32 +rnd(1)*340
 
   gosub check_box_collisions
   if spr_collide&(S_GIRL, sidx) <> 0 then goto .spawn_item
