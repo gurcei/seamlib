@@ -34,6 +34,9 @@
 
 #declare wolf_x(3), wolf_y(3), wolf_vx(3), wolf_vy(3), dx, dy
 
+#declare pane_x%, pane_y%, pane_width%, pane_height%
+#declare game_over_flag
+
 #declare debug_bb = 0
 
 '-------
@@ -88,14 +91,17 @@ trap runstop_trapper
 '----
   gosub init
 
-  gosub title_screen
 
-  for sidx = 0 to spr_count - 1
-    gosub stage_object
-  next sidx
+  do while 1
+    gosub title_screen
 
-  sidx = 0
-  gosub main_game
+    for sidx = 0 to spr_count - 1
+      gosub stage_object
+    next sidx
+
+    sidx = 0
+    gosub main_game
+  loop
 
   end
 
@@ -313,8 +319,12 @@ trap runstop_trapper
 
   k = fre(1)  ' do garbage collection after any string work
 
-  do while 1
+  do while game_over_flag = 0
     ' gosub draw_coords
+
+    gosub user_input
+
+    gosub baddie_logic
 
     gosub draw_objects
 
@@ -322,11 +332,71 @@ trap runstop_trapper
 
     gosub check_box_collisions
 
-    gosub user_input
-
-    gosub baddie_logic
+    gosub game_logic
   loop
 
+  return
+
+
+'----------
+.game_logic
+'----------
+  if spr_collide&(S_GIRL, S_WOLF1) <> 0 then begin
+    tclr = 2 : a$ = "You died a gruesome death!"
+    pane_width% = len(a$) + 4
+    pane_height% = 5
+    gosub show_centred_pane
+
+    sleep 2
+
+    ' clear keyboard buffer
+    for k = 0 to 16
+      get a$
+    next k
+            
+    game_over_flag = 1    
+  bend
+
+  return
+
+
+'-----------------
+.show_centred_pane
+'-----------------
+  pane_x% = (80 - pane_width%) / 2
+  pane_y% = (50 - pane_height%) / 2
+
+  gosub draw_pane
+
+  tclr = 0 : tx = pane_x% + 2 : ty = pane_y% + 2
+  gosub draw_text
+
+  return
+
+
+'---------
+.draw_pane
+'---------
+  bank 0
+  poke $7e10, pane_x%
+  poke $7e11, pane_y%
+  poke $7e12, pane_width%
+  poke $7e13, pane_height%
+^^  sys to $7f09, i0
+  bank 128
+  return
+
+
+'---------
+.hide_pane
+'---------
+  bank 0
+  poke $7e10, pane_x%
+  poke $7e11, pane_y%
+  poke $7e12, pane_width%
+  poke $7e13, pane_height%
+^^  sys to $7f0c, i0
+  bank 128
   return
 
 
@@ -344,6 +414,8 @@ trap runstop_trapper
 
   wolf_vx(0) = 0
   wolf_vy(0) = 0
+
+  game_over_flag = 0
 
   return
 
