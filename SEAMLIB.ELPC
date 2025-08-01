@@ -356,18 +356,30 @@ trap runstop_trapper
 
   if spr_collide&(S_GIRL, S_CARPET) <> 0 then gosub handle_carpet_collision
 
-  if colour_cycle_flag = 1 then begin
-    sys $7f21, 16
-  bend
+  if colour_cycle_flag = 1 then gosub handle_colour_cycling
 
+  return
+
+
+'---------------------
+.handle_colour_cycling
+'---------------------
+  bank 0
+  sys $7f21, 16
+  bank 128
+
+  if (ti - cycle_start) = 10 then begin
+    colour_cycle_flag = 0
+    gosub restore_default_colours
+  bend
   return
 
 
 '-----------------------
 .handle_carpet_collision
 '-----------------------
-    colour_cycle_flag = 1
-    cycle_start = ti
+  colour_cycle_flag = 1
+  cycle_start = ti
   return
 
 
@@ -424,6 +436,7 @@ trap runstop_trapper
   k = fre(1)
 
   if health = 0 then begin
+    colour_cycle_flag = 0
     gosub restore_default_colours
 
     tclr = 2 : a$ = "You died a gruesome death!"
