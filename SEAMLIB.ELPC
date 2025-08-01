@@ -524,7 +524,7 @@ trap runstop_trapper
   spr_oy%(sidx) = 32 +rnd(1)*340
 
   gosub check_box_collisions
-  if spr_collide&(S_GIRL, sidx) <> 0 then goto .spawn_item
+  if spr_collide&(S_GIRL, sidx) <> 0 then goto spawn_item
 
   return
 
