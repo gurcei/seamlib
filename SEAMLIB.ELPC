@@ -147,6 +147,7 @@ trap runstop_trapper
 '----
   bank 0
   bload "game.pal",p($ffd3100)
+  bload "chars.bin",p($40000),r
   ln$ = "moana4.bin"
   gosub load_data
   bload "asmhelper"
