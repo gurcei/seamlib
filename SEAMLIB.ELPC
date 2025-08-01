@@ -39,6 +39,7 @@
 
 #declare cycle_start, colour_cycle_flag
 #declare default_red&(32), default_green&(32), default_blue&(32)
+#declare girl_vx, girl_vy, wolf_die(3)
 
 #declare debug_bb = 0
 
@@ -369,18 +370,31 @@ trap runstop_trapper
   sys $7f21, 16
   bank 128
 
-  if (ti - cycle_start) = 10 then begin
+  if (ti - cycle_start) > 10 then begin
     colour_cycle_flag = 0
     gosub restore_default_colours
+
+    sidx = S_CARPET
+    gosub spawn_item
+
+  bend : else begin
+
+  spr_ox%(S_CARPET) = spr_ox%(S_GIRL) + 16
+  spr_oy%(S_CARPET) = spr_oy%(S_GIRL) + 8
   bend
+
   return
 
 
 '-----------------------
 .handle_carpet_collision
 '-----------------------
-  colour_cycle_flag = 1
-  cycle_start = ti
+  if colour_cycle_flag = 0 then begin
+    colour_cycle_flag = 1
+    cycle_start = ti
+    girl_vx = 0
+    girl_vy = 0
+  bend
   return
 
 
@@ -432,6 +446,15 @@ trap runstop_trapper
 '---------------------
 .handle_wolf_collision
 '---------------------
+  if colour_cycle_flag = 1 then begin
+    score = score + 1000
+    gosub draw_score
+    k = fre(1)
+    spr_ox%(S_WOLF1) = 640
+    wolf_die(0) = ti
+    return
+  bend
+
   health = health - 1
   gosub draw_energy_bars
   k = fre(1)
@@ -528,6 +551,10 @@ trap runstop_trapper
   sidx = S_CARPET
   gosub spawn_item
 
+  for k = 0 to 3
+    wolf_die(k) = 0
+  next k
+
   return
 
 
@@ -547,6 +574,14 @@ trap runstop_trapper
 .baddie_logic
 '------------
 
+  if wolf_die(0) <> 0 then begin
+    if (ti - wolf_die(0)) > 10 then begin
+      sidx = S_WOLF1
+      gosub spawn_item
+      wolf_die(0) = 0
+    bend
+  bend
+
   dx = spr_ox%(S_GIRL) - spr_ox%(S_WOLF1)
   dy = spr_oy%(S_GIRL) - spr_oy%(S_WOLF1)
 
@@ -562,8 +597,13 @@ trap runstop_trapper
   if wolf_vy(0) > 5 then wolf_vy(0) = 5
   if wolf_vy(0) < -5 then wolf_vy(0) = -5
 
-  wolf_x(0) = wolf_x(0) + wolf_vx(0)
-  wolf_y(0) = wolf_y(0) + wolf_vy(0)
+  if colour_cycle_flag = 0 then begin
+    wolf_x(0) = wolf_x(0) + wolf_vx(0)
+    wolf_y(0) = wolf_y(0) + wolf_vy(0)
+  bend : else begin
+    wolf_x(0) = wolf_x(0) - wolf_vx(0)
+    wolf_y(0) = wolf_y(0) - wolf_vy(0)
+  bend
 
   if wolf_x(0) < 0 then wolf_x(0) = 0
   if wolf_x(0) > 607 then wolf_x(0) = 607
@@ -580,7 +620,51 @@ trap runstop_trapper
 .user_input
 '----------
   get a$
+
+  if colour_cycle_flag = 1 then gosub carpet_controls
   
+  if colour_cycle_flag = 0 then gosub normal_controls
+    
+  if a$ = KEY_MEGA_Q then goto cleanup
+
+  return
+
+
+'---------------
+.carpet_controls
+'---------------
+  if a$ = KEY_LEFT and girl_vx > -4 then begin
+    girl_vx = girl_vx - 1
+  bend
+
+  if a$ = KEY_RIGHT and girl_vx < 4 then begin
+    girl_vx = girl_vx + 1
+  bend
+
+  if a$ = KEY_UP and girl_vy > -4 then begin
+    girl_vy = girl_vy - 1
+  bend
+
+  if a$ = KEY_DOWN and girl_vy < 4 then begin
+    girl_vy = girl_vy + 1
+  bend
+
+  spr_ox%(S_GIRL) = spr_ox%(S_GIRL) + girl_vx
+
+  if spr_ox%(S_GIRL) < 0 then spr_ox%(S_GIRL) = 0: girl_vx = -girl_vx
+  if spr_ox%(S_GIRL) > 607 then spr_ox%(S_GIRL) = 607 : girl_vx = -girl_vx
+
+  spr_oy%(S_GIRL) = spr_oy%(S_GIRL) + girl_vy
+
+  if spr_oy%(S_GIRL) < 0 then spr_oy%(S_GIRL) = 0: girl_vy = -girl_vy
+  if spr_oy%(S_GIRL) > 367 then spr_oy%(S_GIRL) = 367 : girl_vy = -girl_vy
+
+  return
+
+
+'---------------
+.normal_controls
+'---------------
   if a$ = KEY_LEFT then begin
     spr_ox%(S_GIRL) = spr_ox%(S_GIRL) - 3
     if spr_ox%(S_GIRL) < 0 then spr_ox%(S_GIRL) = 0
@@ -600,8 +684,6 @@ trap runstop_trapper
     spr_oy%(S_GIRL) = spr_oy%(S_GIRL) + 3
     if spr_oy%(S_GIRL) > 367 then spr_oy%(S_GIRL) = 367
   bend
-
-  if a$ = KEY_MEGA_Q then goto cleanup
 
   return
 
