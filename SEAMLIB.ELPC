@@ -38,6 +38,7 @@
 #declare game_over_flag
 
 #declare cycle_start, colour_cycle_flag
+#declare default_red&(32), default_green&(32), default_blue&(32)
 
 #declare debug_bb = 0
 
@@ -153,6 +154,8 @@ trap runstop_trapper
   key off
 
   print chr$(14);  ' lower-case
+
+  gosub store_default_colours
 
   aptr_lo = pointer(a$) and $ff
   aptr_hi = pointer(a$) / 256
@@ -421,6 +424,8 @@ trap runstop_trapper
   k = fre(1)
 
   if health = 0 then begin
+    gosub restore_default_colours
+
     tclr = 2 : a$ = "You died a gruesome death!"
     pane_width% = len(a$) + 4
     pane_height% = 5
@@ -433,7 +438,8 @@ trap runstop_trapper
       get a$
     next k
             
-    game_over_flag = 1    
+    game_over_flag = 1
+
   bend
   return
 
@@ -785,6 +791,30 @@ trap runstop_trapper
   xx = int(cx / 8)
   yy = int(cy / 8)
   poke char_idx%(fidx) * $40 + $40 * chr_height%(fidx) * xx + $40 * yy + y * 8 + x, 1
+
+  return
+
+
+'---------------------
+.store_default_colours
+'---------------------
+  for k = 0 to 31
+    default_red&(k) = peek($d100+k)
+    default_green&(k) = peek($d200+k)
+    default_blue&(k) = peek($d300+k)
+  next k
+
+  return
+
+
+'-----------------------
+.restore_default_colours
+'-----------------------
+  for k = 0 to 31
+    poke $d100+k, default_red&(k)
+    poke $d200+k, default_green&(k)
+    poke $d300+k, default_blue&(k)
+  next k
 
   return
 ÿ
