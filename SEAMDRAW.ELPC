@@ -28,6 +28,9 @@
 #declare sel_idx%, state, orig_cx, orig_cy, draft_flag
 #declare bkp_cx, bkp_cy, bkp_clr, copy_idx
 
+#declare match_clr, bkp_cx, bkp_cy, curr_clr
+
+
 '-------
 .defines
 '-------
@@ -54,6 +57,7 @@
 #define KEY_MEGA_D = "¬"
 #define KEY_MEGA_B = "¿"
 #define KEY_MEGA_R = "²"
+#define KEY_MEGA_F = "»"
 #define KEY_DEL = "{x14}"
 #define KEY_CLR = "{x93}"
 
@@ -143,6 +147,7 @@ trap runstop_trapper
 
       if a$ = KEY_MEGA_R then gosub do_rectangle
 
+      if a$ = KEY_MEGA_F then gosub do_fill
     bend
 
     ' - - - - - - -
@@ -318,6 +323,97 @@ trap runstop_trapper
   bank 0
 ^^  sys to $7f0c, i0
   bank 128
+  return
+
+
+'-------
+.do_fill
+'-------
+  orig_cx = cx
+  orig_cy = cy
+
+  bkp_cx = cx
+  bkp_cy = cy
+  
+  match_clr = peek($ff80000 + (cy + 2) * WIDTH + cx * 2 + 1)
+
+  gosub travel_right_and_left
+
+  gosub travel_up
+
+  gosub travel_down  
+
+  cx = orig_cx
+  cy = orig_cy
+
+  return
+
+
+.travel_down
+'-----------
+  bkp_cx = orig_cx
+  bkp_cy = orig_cy
+
+  do
+    bkp_cy = bkp_cy + 1
+    if bkp_cy = chr_height(fidx) * 8 then exit
+    curr_clr = peek($ff80000 + (bkp_cy + 2) * WIDTH + bkp_cx * 2 + 1)
+    k = 0
+    if curr_clr = match_clr then k = 1 : gosub travel_right_and_left
+  loop while k = 1
+  return
+
+
+.travel_up
+'---------
+  bkp_cx = orig_cx
+  bkp_cy = orig_cy
+
+  do
+    bkp_cy = bkp_cy - 1
+    if bkp_cy < 0 then exit
+    curr_clr = peek($ff80000 + (bkp_cy + 2) * WIDTH + bkp_cx * 2 + 1)
+    k = 0
+    if curr_clr = match_clr then k = 1 : gosub travel_right_and_left
+  loop while k = 1
+  return
+
+
+.travel_right_and_left
+'---------------------
+  cx = bkp_cx
+  cy = bkp_cy
+  gosub travel_right
+
+  cx = bkp_cx
+  cy = bkp_cy
+  gosub travel_left
+  return
+
+
+.travel_right
+'------------
+  do
+    gosub plot_pixel
+
+    cx = cx + 1
+    if cx = chr_width(fidx) * 8 then exit
+    curr_clr = peek($ff80000 + (cy + 2) * WIDTH + cx * 2 + 1)
+    if curr_clr = match_clr then gosub plot_pixel
+  loop while curr_clr = match_clr
+  return
+
+
+.travel_left
+'-----------
+  do
+    gosub plot_pixel
+
+    cx = cx - 1
+    if cx = -1 then exit
+    curr_clr = peek($ff80000 + (cy + 2) * WIDTH + cx * 2 + 1)
+    if curr_clr = match_clr then gosub plot_pixel
+  loop while curr_clr = match_clr
   return
 
 

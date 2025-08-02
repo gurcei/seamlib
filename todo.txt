@@ -11,7 +11,18 @@ DONE- draw in 3x3 char groups as soft-sprites/pixies
 DONE- Use , and . to select between sprite frames
 DONE- select 'add' new frame
 DONE- add 'bounding box' editor (see how it was done in megafoot's grabber tool)
-- seamlib: add logic to assess bounding box collisions between sprites
+DONE- seamlib: add logic to assess bounding box collisions between sprites
+
+SPRING game
+-----------
+- nicer title screen
+- some music
+- sound effects
+- more baddies?
+- algebra dragon asking vietnamese questions?
+- a treasure box for the key to unlock?
+- flowers to collect? (to associate with 'spring'?)
+- joystick control
 
 stretch goals
 -------------
