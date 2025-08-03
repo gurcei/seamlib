@@ -677,8 +677,17 @@ array_spr_collide: !word $00    // 7E28  (spr_collide&[][])
 
 //---------------
 cycle_alt_palette:
-//---------------  // a = base colour to start from (e.g. y=12 means cycle from 12 to 31(
+//---------------  // a = base colour to start from, x = number of colours (e.g. a=12, x=8 means cycle from 12 to 19)
 	tay
+
+  clc
+  sta max_clr
+  stx max_cnt
+  txa
+  adc max_clr
+  sta max_clr
+  sta max_clr_min_1
+  dec max_clr_min_1
 
 	// prepare four pointer
 	lda #$00
@@ -712,134 +721,21 @@ cycle_alt_palette:
 		sta $d300,x
 	// next k
 	inx
-	cpx #31
+	cpx max_clr_min_1
 	bne -
 
 	// poke $d100+31, tempr
 	lda tempr
-	sta $d100+31
+  phy
+  ldy max_clr_min_1
+	sta $d100,y
 	// poke $d200+31, tempg
 	lda tempg
-	sta $d200+31
+	sta $d200,y
 	// poke $d300+31, tempb
 	lda tempb
-	sta $d300+31
-	
-	// ----------------------------
-
-do_curr:
-	tya
-	taz
-	// tempr = curr_red&(12)
-	+set1ptr_from_4ptr CURR_RED
-	lda [ONEPTR],z
-	sta tempr
-	// tempg = curr_green&(12)
-	+set1ptr_from_4ptr CURR_GREEN
-	lda [ONEPTR],z
-	sta tempg
-	// tempb = curr_blue&(12)
-	+set1ptr_from_4ptr CURR_BLUE
-	lda [ONEPTR],z
-	sta tempb
-
-	// for k = 12 to 30
-	tya
-	taz
-		// curr_red&(k) = curr_red&(k+1)
--		+set1ptr_from_4ptr CURR_RED
-		inz
-		lda [ONEPTR],z
-		dez
-		sta [ONEPTR],z
-		// curr_green&(k) = curr_green&(k+1)
-		+set1ptr_from_4ptr CURR_GREEN
-		inz
-		lda [ONEPTR],z
-		dez
-		sta [ONEPTR],z
-		// curr_blue&(k) = curr_blue&(k+1)
-		+set1ptr_from_4ptr CURR_BLUE
-		inz
-		lda [ONEPTR],z
-		dez
-		sta [ONEPTR],z
-	// next k
-	inz
-	cpz #31
-	bne -
-
-	ldz #31
-	// curr_red&(31) = tempr
-	+set1ptr_from_4ptr CURR_RED
-	lda tempr
-	sta [ONEPTR],z
-	// curr_green&(31) = tempg
-	+set1ptr_from_4ptr CURR_GREEN
-	lda tempg
-	sta [ONEPTR],z
-	// curr_blue&(31) = tempb
-	+set1ptr_from_4ptr CURR_BLUE
-	lda tempb
-	sta [ONEPTR],z
-	
-	// ----------------------------
-
-do_default:
-	tya
-	taz
-	// tempr = default_red&(12)
-	+set1ptr_from_4ptr DEFAULT_RED
-	lda [ONEPTR],z
-	sta tempr
-	// tempg = default_green&(12)
-	+set1ptr_from_4ptr DEFAULT_GREEN
-	lda [ONEPTR],z
-	sta tempg
-	// tempb = default_blue&(12)
-	+set1ptr_from_4ptr DEFAULT_BLUE
-	lda [ONEPTR],z
-	sta tempb
-
-	// for k = 12 to 30
-	tya
-	taz
-		// default_red&(k) = default_red&(k+1)
--		+set1ptr_from_4ptr DEFAULT_RED
-		inz
-		lda [ONEPTR],z
-		dez
-		sta [ONEPTR],z
-		// default_green&(k) = default_green&(k+1)
-		+set1ptr_from_4ptr DEFAULT_GREEN
-		inz
-		lda [ONEPTR],z
-		dez
-		sta [ONEPTR],z
-		// default_blue&(k) = default_blue&(k+1)
-		+set1ptr_from_4ptr DEFAULT_BLUE
-		inz
-		lda [ONEPTR],z
-		dez
-		sta [ONEPTR],z
-	// next k
-	inz
-	cpz #31
-	bne -
-
-	ldz #31
-	// default_red&(31) = tempr
-	+set1ptr_from_4ptr DEFAULT_RED
-	lda tempr
-	sta [ONEPTR],z
-	// default_green&(31) = tempg
-	+set1ptr_from_4ptr DEFAULT_GREEN
-	lda tempg
-	sta [ONEPTR],z
-	// default_blue&(31) = tempb
-	+set1ptr_from_4ptr DEFAULT_BLUE
-	lda tempb
-	sta [ONEPTR],z
+	sta $d300,y
+  ply
 
 	//return
 	rts
@@ -2577,6 +2473,9 @@ dptr_bb_cnt: !word $00, $00
 tempr:		!byte $00
 tempg:		!byte $00
 tempb:		!byte $00
+max_clr: !byte $00
+max_clr_min_1: !byte $00
+max_cnt: !byte $00
 
 dma_screen:
 +edma OP_FILL, WIDTH * 50, 32, $00, $0800, $04, $00

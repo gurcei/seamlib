@@ -30,6 +30,8 @@
 
 #declare match_clr, bkp_cx, bkp_cy, curr_clr
 
+#declare default_red&(255), default_green&(255), default_blue&(255)
+
 
 '-------
 .defines
@@ -58,6 +60,7 @@
 #define KEY_MEGA_B = "¿"
 #define KEY_MEGA_R = "²"
 #define KEY_MEGA_F = "»"
+#define KEY_MEGA_P = "_"
 #define KEY_DEL = "{x14}"
 #define KEY_CLR = "{x93}"
 
@@ -148,6 +151,8 @@ trap runstop_trapper
       if a$ = KEY_MEGA_R then gosub do_rectangle
 
       if a$ = KEY_MEGA_F then gosub do_fill
+
+      if a$ = KEY_MEGA_P then gosub handle_colour_cycling
     bend
 
     ' - - - - - - -
@@ -1126,6 +1131,7 @@ trap runstop_trapper
   frame_count = 1
   anim_count = 0
 
+  gosub store_default_colours
 
   clr_key$(0) = "1"
   clr_key$(1) = "2"
@@ -1194,5 +1200,46 @@ trap runstop_trapper
 
   sys $7f03, 0, aptr_lo, aptr_hi
   bank 128
+  return
+
+
+'---------------------
+.store_default_colours
+'---------------------
+  for k = 0 to 255
+    default_red&(k) = peek($d100+k)
+    default_green&(k) = peek($d200+k)
+    default_blue&(k) = peek($d300+k)
+  next k
+
+  return
+
+
+'-----------------------
+.restore_default_colours
+'-----------------------
+  for k = 0 to 255
+    poke $d100+k, default_red&(k)
+    poke $d200+k, default_green&(k)
+    poke $d300+k, default_blue&(k)
+  next k
+
+  return
+
+
+'---------------------
+.handle_colour_cycling
+'---------------------
+  vsync 230
+
+  bank 0
+  sys $7f21, 16, 16
+  bank 128
+
+  get a$
+  if a$ = "" then goto handle_colour_cycling
+
+  gosub restore_default_colours
+
   return
 ÿ
