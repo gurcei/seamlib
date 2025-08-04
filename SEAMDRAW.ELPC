@@ -32,6 +32,8 @@
 
 #declare default_red&(255), default_green&(255), default_blue&(255)
 
+#declare fill_flag, dr2
+
 
 '-------
 .defines
@@ -178,13 +180,19 @@ trap runstop_trapper
     ' - - - - - - -
 
     if state = STATE_RECT then begin
-      if a$ = "r" or a$ = KEY_RETURN then gosub do_rectangle
+      if a$ = KEY_MEGA_R or a$ = KEY_RETURN then gosub do_rectangle
 
       if a$ = KEY_UP or a$ = KEY_DOWN or {x5F}
          a$ = KEY_LEFT or a$ = KEY_RIGHT then begin
         draft_flag = 1
         gosub redraw_rect_at_cursor_pos
 
+      bend
+
+      if a$ = "f" then begin
+        if fill_flag = 0 then fill_flag = 1: else fill_flag = 0
+        draft_flag = 1
+        gosub redraw_rect_at_cursor_pos
       bend
 
       if a$ = KEY_ESCAPE then begin
@@ -427,6 +435,8 @@ trap runstop_trapper
 '------------
   state = STATE_RECT
 
+  a$ = ""
+
   if rect_state = 0 then begin
     rect_x1% = cx
     rect_y1% = cy
@@ -462,27 +472,48 @@ trap runstop_trapper
 .draw_rect
 '---------
   dr = 1
-  if rect_x1% > rect_x2% then dr = -1
+  dr2 = 1
 
   orig_cx = cx
   orig_cy = cy
 
-  for cx = rect_x1% to rect_x2% step dr
-    cy = rect_y1%
-    gosub plot_pixel
-    cy = rect_y2%
-    gosub plot_pixel
-  next cx
+  if fill_flag = 1 then begin
 
-  dr = 1
-  if rect_y1% > rect_y2% then dr = -1
+    if rect_y1% > rect_y2% then dr = -1
 
-  for cy = rect_y1% to rect_y2% step dr
-    cx = rect_x1%
-    gosub plot_pixel
-    cx = rect_x2%
-    gosub plot_pixel
-  next cy
+    for cy = rect_y1% to rect_y2% step dr
+
+      if rect_x1% > rect_x2% then dr2 = -1
+        for cx = rect_x1% to rect_x2% step dr2
+          gosub plot_pixel
+        next cx
+
+    next cy
+
+  bend : else begin
+
+    ' no fill, just border
+
+    if rect_x1% > rect_x2% then dr = -1
+
+    for cx = rect_x1% to rect_x2% step dr
+      cy = rect_y1%
+      gosub plot_pixel
+      cy = rect_y2%
+      gosub plot_pixel
+    next cx
+
+    dr = 1
+    if rect_y1% > rect_y2% then dr = -1
+
+    for cy = rect_y1% to rect_y2% step dr
+      cx = rect_x1%
+      gosub plot_pixel
+      cx = rect_x2%
+      gosub plot_pixel
+    next cy
+
+  bend
 
   cx = orig_cx
   cy = orig_cy
@@ -1233,7 +1264,7 @@ trap runstop_trapper
   vsync 230
 
   bank 0
-  sys $7f21, 16, 16
+  sys $7f21, slice*16, 16
   bank 128
 
   get a$
