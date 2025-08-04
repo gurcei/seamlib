@@ -1,6 +1,6 @@
 #output "seamlib"
 
-#define SPR_MAX = 9 - 1
+#define SPR_MAX = 13 - 1
 
 '--------
 .declares
@@ -55,7 +55,7 @@
 #define KEY_RIGHT = "{x1D}"
 #define KEY_MEGA_Q = "«"
 
-#define WIDTH = 250
+#define WIDTH = 300
 
 #define OP_COPY = 0
 #define OP_MIX  = 1
@@ -74,6 +74,18 @@
 #define F_WOLF2 = 5
 #define F_GIRL1 = 6
 #define F_GIRL2 = 7
+#define F_CHEST2 = 8
+#define F_CHEST1 = 9
+#define F_GEM1 = 10
+#define F_GEM2 = 11
+#define F_GEM3 = 12
+#define F_CHAR_S = 13
+#define F_CHAR_P = 14
+#define F_CHAR_R = 15
+#define F_CHAR_I = 16
+#define F_CHAR_N = 17
+#define F_CHAR_G = 18
+
 
 ' seam sprites
 #define S_CARPET = 0
@@ -85,6 +97,11 @@
 #define S_WOLF3 = 6
 #define S_WOLF4 = 7
 #define S_GIRL = 8
+#define S_CHEST = 9
+#define S_GEM1 = 10
+#define S_GEM2 = 11
+#define S_GEM3 = 12
+
 
 spr_count = SPR_MAX + 1
 
@@ -222,7 +239,33 @@ trap runstop_trapper
   spr_frame_count%(S_GIRL) = 2
   spr_frames&(S_GIRL, 0) = F_GIRL1
   spr_frames&(S_GIRL, 1) = F_GIRL2
-  
+
+  spr_chr_width%(S_CHEST) = 4
+  spr_chr_height%(S_CHEST) = 4
+  spr_char_idx%(S_CHEST) = char_idx%(F_CHEST1)
+  spr_frame_count%(S_CHEST) = 2
+  spr_frames&(S_CHEST, 0) = F_CHEST1
+  spr_frames&(S_CHEST, 1) = F_CHEST2
+
+  spr_chr_width%(S_GEM1) = 2
+  spr_chr_height%(S_GEM1) = 2
+  spr_char_idx%(S_GEM1) = char_idx%(F_GEM1)
+  spr_frame_count%(S_GEM1) = 1
+  spr_frames&(S_GEM1, 0) = F_GEM1
+
+  spr_chr_width%(S_GEM2) = 2
+  spr_chr_height%(S_GEM2) = 2
+  spr_char_idx%(S_GEM2) = char_idx%(F_GEM2)
+  spr_frame_count%(S_GEM2) = 1
+  spr_frames&(S_GEM2, 0) = F_GEM2
+
+  spr_chr_width%(S_GEM3) = 2
+  spr_chr_height%(S_GEM3) = 2
+  spr_char_idx%(S_GEM3) = char_idx%(F_GEM3)
+  spr_frame_count%(S_GEM3) = 1
+  spr_frames&(S_GEM3, 0) = F_GEM3
+
+    
   ' keep all sprites off-screen to start with
   ' that's my simple workaround for now to make them 'invisible'
   for k = 0 to spr_count - 1
