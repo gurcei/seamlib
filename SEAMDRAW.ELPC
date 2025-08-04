@@ -66,7 +66,7 @@
 #define KEY_DEL = "{x14}"
 #define KEY_CLR = "{x93}"
 
-#define WIDTH = 250
+#define WIDTH = 300
 
 #define OP_COPY = 0
 #define OP_MIX  = 1

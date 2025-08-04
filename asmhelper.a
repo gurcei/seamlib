@@ -475,6 +475,24 @@ OP_FILL = 3
 	plz
 }
 
+!macro multiply8to16 .in_b, .in_w, .out {
+	phz
+	ldz #$00
+	ldy #$00
+	ldx #$00
+	lda .in_b
+	stq MULTINA
+
+	lda .in_w
+  ldx .in_w+1
+	stq MULTINB
+
+	ldq MULTOUT
+	stx .out+1
+	sta .out
+	plz
+}
+
 !macro wpoke_b4 .offs, .intvar {
 	ldz#.offs
 	lda .intvar
@@ -1245,9 +1263,9 @@ prepare_screen_and_clr_pointers:
     adc #$00
     sta inputw1+1
 
-    lda #WIDTH
-    sta tmp
-    +multiply8 ty, tmp, inputw2
+    +set16 tmpw, WIDTH
+    +multiply8to16 ty, tmpw, inputw2
+    
 
     +add16 inputw1, inputw2, outputw
 
@@ -1681,9 +1699,8 @@ draw_text:
     adc #$00
     sta inputw1+1
 
-    lda #WIDTH
-    sta tmp
-    +multiply8 ty, tmp, inputw2
+    +set16 tmpw, WIDTH
+    +multiply8to16 ty, tmpw, inputw2
 
     +add16 inputw1, inputw2, inputw1
 
@@ -1985,10 +2002,7 @@ skip_adjust_minyy:
         lda #$00
         sta inputw1+1
 
-        lda #WIDTH
-        sta inputw2
-        lda #$00
-        sta inputw2+1
+        +set16 inputw2, WIDTH
         +multiply16 inputw1, inputw2, outputw
 
         +add16 outputw, stage_x_offs, outputw
@@ -2064,10 +2078,7 @@ lpy:
         +add16 inputw1, inputw2, outputw
 
         // outputw = outputw * WIDTH
-        lda #WIDTH
-        sta inputw2
-        lda #$00
-        sta inputw2+1
+        +set16 inputw2, WIDTH
         +multiply16 outputw, inputw2, outputw
 
         +add16 outputw, stage_x_offs, outputw
@@ -2113,7 +2124,9 @@ lpy:
         cpy tmpy
         bne skip_copy_last_line_twice
 //        wpoke k + WIDTH, char_idx
-          ldz #WIDTH
+          +set16 tmpw, WIDTH
+          +add16 FOURPTR, tmpw, FOURPTR
+          ldz #$00
           lda char_idx
           sta [FOURPTR],z
           inz
@@ -2182,10 +2195,7 @@ skip_copy_last_line_twice:
         lda #$00
         sta inputw1+1
 
-        lda #WIDTH
-        sta inputw2
-        lda #$00
-        sta inputw2+1
+        +set16 inputw2, WIDTH
         +multiply16 inputw1, inputw2, outputw
 
         +add16 outputw, stage_x_offs, outputw
@@ -2242,10 +2252,7 @@ lpyy:
         lda #$00
         sta inputw1+1
 
-        lda #WIDTH
-        sta inputw2
-        lda #$00
-        sta inputw2+1
+        +set16 inputw2, WIDTH
         +multiply16 inputw1, inputw2, outputw
 
         +add16 outputw, stage_x_offs, outputw
@@ -2327,10 +2334,7 @@ skip_poke:
       lda #$00
       sta inputw1+1
 
-      lda #WIDTH
-      sta inputw2
-      lda #$00
-      sta inputw2+1
+      +set16 inputw2, WIDTH
       +multiply16 inputw1, inputw2, outputw
 
       +add16 outputw, stage_x_offs, outputw
@@ -2427,6 +2431,7 @@ rev_flag: !byte $00
 stringlen: !byte $00
 chr: !byte $00
 tmp: !byte $00
+tmpw: !word $00
 kptr: !byte $00
 
 // draw_pane
