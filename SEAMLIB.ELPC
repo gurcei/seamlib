@@ -1,6 +1,6 @@
 #output "seamlib"
 
-#define SPR_MAX = 10 - 1
+#define SPR_MAX = 13 - 1
 
 '--------
 .declares
@@ -42,6 +42,7 @@
 #declare girl_vx, girl_vy, wolf_die(3), key_flag
 
 #declare gem_x(2), gem_y(2), gem_vx(2), gem_vy(2), chest_time
+#declare widx, wolf_cnt
 
 #declare debug_bb = 0
 
@@ -57,7 +58,7 @@
 #define KEY_RIGHT = "{x1D}"
 #define KEY_MEGA_Q = "«"
 
-#define WIDTH = 240
+#define WIDTH = 270
 
 #define OP_COPY = 0
 #define OP_MIX  = 1
@@ -93,13 +94,16 @@
 #define S_CARPET = 0
 #define S_BANANA = 1
 #define S_WBOTTLE = 2
-#define S_WOLF1 = 3
-#define S_CHEST = 4
-#define S_KEY = 5
-#define S_GEM1 = 6
-#define S_GEM2 = 7
-#define S_GEM3 = 8
-#define S_GIRL = 9
+#define S_CHEST = 3
+#define S_KEY = 4
+#define S_GEM1 = 5
+#define S_GEM2 = 6
+#define S_GEM3 = 7
+#define S_WOLF1 = 8
+#define S_WOLF2 = 9
+#define S_WOLF3 = 10
+#define S_WOLF4 = 11
+#define S_GIRL = 12
 
 
 spr_count = SPR_MAX + 1
@@ -147,12 +151,33 @@ trap runstop_trapper
   ty = ty +2 : a$ = "Joystick port 2"
   gosub draw_text
 
-  ty = ty + 2 : a$ = "Press any key to start"
+  ty = ty + 2 : a$ = "Choose level of difficulty:"
   gosub draw_text
+
+  ty = ty + 2 : a$ = "  (1) Easy"
+  gosub draw_text
+
+  ty = ty + 2 : a$ = "  (2) Medium"
+  gosub draw_text
+
+  ty = ty + 2 : a$ = "  (3) Difficult"
+  gosub draw_text
+
+  ty = ty + 2 : a$ = "  (4) Extreme"
+  gosub draw_text
+
 
   k = fre(1)  ' garbage collect
 
-  get key a$
+  do while 1
+    get key a$
+
+    if a$ = "1" then wolf_cnt = 0 : exit
+    if a$ = "2" then wolf_cnt = 1 : exit
+    if a$ = "3" then wolf_cnt = 2 : exit
+    if a$ = "4" then wolf_cnt = 3 : exit
+
+  loop
 
   gosub clrscreen
 
@@ -223,7 +248,7 @@ trap runstop_trapper
   spr_frame_count%(S_WBOTTLE) = 1
   spr_frames&(S_WBOTTLE, 0) = F_WBOTTLE
 
-#define WOLF_MAX = 0
+#define WOLF_MAX = 3
 
   for k = 0 to WOLF_MAX
     spr_chr_width%(S_WOLF1 + k) = 4
@@ -404,7 +429,9 @@ trap runstop_trapper
 '----------
 .game_logic
 '----------
-  if spr_collide&(S_GIRL, S_WOLF1) <> 0 then gosub handle_wolf_collision
+  for widx = 0 to wolf_cnt - 1
+    if spr_collide&(S_GIRL, S_WOLF1 + widx) <> 0 then gosub handle_wolf_collision
+  next widx
 
   if spr_collide&(S_GIRL, S_KEY) <> 0 then gosub handle_key_collision
 
@@ -440,6 +467,10 @@ trap runstop_trapper
     sidx = S_KEY
     gosub spawn_item
 
+    spr_fidx&(S_CHEST) = 0
+    tmp = char_idx%(spr_frames&(S_CHEST, 0))
+    spr_char_idx%(S_CHEST) = tmp
+
     sidx = S_CHEST
     gosub spawn_item
     return
@@ -452,17 +483,17 @@ trap runstop_trapper
       if gem_x(k) <> 640 then begin
         gem_x(k) = gem_x(k) + gem_vx(k)
         if gem_x(k) < 1 then gem_x(k) = 1 : gem_vx(k) = -gem_vx(k)
-        if gem_x(k) > 638 then gem_x(k) = 638 : gem_vx(k) = -gem_vx(k)
+        if gem_x(k) > 623 then gem_x(k) = 623 : gem_vx(k) = -gem_vx(k)
 
         gem_y(k) = gem_y(k) + gem_vy(k)
-        if gem_y(k) < 2 then gem_y(k) = 2 : gem_vy(k) = -gem_vy(k)
-        if gem_y(k) > 397 then gem_y(k) = 397 : gem_vy(k) = -gem_vy(k)
+        if gem_y(k) < 16 then gem_y(k) = 16 : gem_vy(k) = -gem_vy(k)
+        if gem_y(k) > 383 then gem_y(k) = 383 : gem_vy(k) = -gem_vy(k)
 
         spr_ox%(S_GEM1 + k) = gem_x(k)
         spr_oy%(S_GEM1 + k) = gem_y(k)
 
-        gem_vx(k) = .99 * gem_vx(k)
-        gem_vy(k) = .99 * gem_vy(k)
+        gem_vx(k) = .97 * gem_vx(k)
+        gem_vy(k) = .97 * gem_vy(k)
       bend
     next k
   bend
@@ -612,8 +643,8 @@ trap runstop_trapper
     score = score + 1000
     gosub draw_score
     k = fre(1)
-    spr_ox%(S_WOLF1) = 640
-    wolf_die(0) = ti
+    spr_ox%(S_WOLF1 + widx) = 640
+    wolf_die(widx) = ti
 
   bend : else begin
 
@@ -691,14 +722,27 @@ trap runstop_trapper
   spr_ox%(S_GIRL) = 30
   spr_oy%(S_GIRL) = 220
 
-  wolf_x(0) = 600
-  wolf_y(0) = 220
+  for k = 0 to WOLF_MAX
 
-  spr_ox%(S_WOLF1) = wolf_x(0)
-  spr_oy%(S_WOLF1) = wolf_y(0)
+    wolf_x(k) = 100 + 500 * mod(k, 2)
+    wolf_y(k) = 100 + 300 * int(k / 2)
 
-  wolf_vx(0) = 0
-  wolf_vy(0) = 0
+    if k <= wolf_cnt then begin
+      spr_ox%(S_WOLF1 + k) = wolf_x(k)
+      spr_oy%(S_WOLF1 + k) = wolf_y(k)
+    bend: else begin
+      spr_ox%(S_WOLF1 + k) = 640
+      spr_oy%(S_WOLF1 + k) = 0
+    bend
+
+    wolf_vx(k) = 0
+    wolf_vy(k) = 0
+
+  next k
+
+  spr_fidx&(S_CHEST) = 0
+  tmp = char_idx%(spr_frames&(S_CHEST, 0))
+  spr_char_idx%(S_CHEST) = tmp
 
   game_over_flag = 0
   colour_cycle_flag = 0
@@ -724,6 +768,11 @@ trap runstop_trapper
     wolf_die(k) = 0
   next k
 
+  for k = 0 to 2
+    gem_x(k) = 640
+    spr_ox%(S_GEM1 + k) = 640
+  next k
+
   return
 
 
@@ -743,54 +792,60 @@ trap runstop_trapper
 .baddie_logic
 '------------
 
-  if wolf_die(0) <> 0 then begin
+  for widx = 0 to wolf_cnt
 
-    if (ti - wolf_die(0)) > 10 then begin
-      sidx = S_WOLF1
-      gosub spawn_item
+    if wolf_die(widx) <> 0 then begin
 
-      wolf_x(0) = spr_ox%(S_WOLF1)
-      wolf_y(0) = spr_oy%(S_WOLF1)
-      wolf_vx(0) = 0
-      wolf_vy(0) = 0
+      if (ti - wolf_die(widx)) > 10 then begin
+        sidx = S_WOLF1 + widx
+        gosub spawn_item
 
-      wolf_die(0) = 0
+        wolf_x(widx) = spr_ox%(S_WOLF1 + widx)
+        wolf_y(widx) = spr_oy%(S_WOLF1 + widx)
+        wolf_vx(widx) = 0
+        wolf_vy(widx) = 0
+
+        wolf_die(widx) = 0
+      bend
+
     bend
 
-    return
-  bend
+    if wolf_die(widx) <> 0 then goto cnt_widx
 
-  dx = spr_ox%(S_GIRL) - spr_ox%(S_WOLF1)
-  dy = spr_oy%(S_GIRL) - spr_oy%(S_WOLF1)
+    dx = spr_ox%(S_GIRL) - spr_ox%(S_WOLF1 + widx)
+    dy = spr_oy%(S_GIRL) - spr_oy%(S_WOLF1 + widx)
 
-  radius = sqr(dx*dx + dy*dy)
+    radius = sqr(dx*dx + dy*dy)
 
-  if dx <> 0 then dx = .1 * dx / radius ' : else wolf_vx(0) = 0
-  if dy <> 0 then dy = .1 * dy / radius ' : else wolf_vy(0) = 0
+    if dx <> 0 then dx = .1 * dx / radius ' : else wolf_vx(widx) = 0
+    if dy <> 0 then dy = .1 * dy / radius ' : else wolf_vy(widx) = 0
 
-  if colour_cycle_flag = 0 then begin
-    wolf_vx(0) = wolf_vx(0) + dx
-    wolf_vy(0) = wolf_vy(0) + dy
-  bend : else : begin
-    wolf_vx(0) = wolf_vx(0) - dx
-    wolf_vy(0) = wolf_vy(0) - dy
-  bend
+    if colour_cycle_flag = 0 then begin
+      wolf_vx(widx) = wolf_vx(widx) + dx
+      wolf_vy(widx) = wolf_vy(widx) + dy
+    bend : else : begin
+      wolf_vx(widx) = wolf_vx(widx) - dx
+      wolf_vy(widx) = wolf_vy(widx) - dy
+    bend
 
-  if wolf_vx(0) > 5 then wolf_vx(0) = 5
-  if wolf_vx(0) < -5 then wolf_vx(0) = -5
-  if wolf_vy(0) > 5 then wolf_vy(0) = 5
-  if wolf_vy(0) < -5 then wolf_vy(0) = -5
+    if wolf_vx(widx) > 5+widx then wolf_vx(widx) = 5+widx
+    if wolf_vx(widx) < -5-widx then wolf_vx(widx) = -5-widx
+    if wolf_vy(widx) > 5+widx then wolf_vy(widx) = 5+widx
+    if wolf_vy(widx) < -5-widx then wolf_vy(widx) = -5-widx
 
-  wolf_x(0) = wolf_x(0) + wolf_vx(0)
-  wolf_y(0) = wolf_y(0) + wolf_vy(0)
+    wolf_x(widx) = wolf_x(widx) + wolf_vx(widx)
+    wolf_y(widx) = wolf_y(widx) + wolf_vy(widx)
 
-  if wolf_x(0) < 0 then wolf_x(0) = 0 : wolf_vx(0) = -wolf_vx(0)
-  if wolf_x(0) > 607 then wolf_x(0) = 607 : wolf_vx(0) = -wolf_vx(0)
-  if wolf_y(0) < 0 then wolf_y(0) = 0 : wolf_vy(0) = -wolf_vy(0)
-  if wolf_y(0) > 367 then wolf_y(0) = 367 : wolf_vy(0) = -wolf_vy(0)
+    if wolf_x(widx) < 0 then wolf_x(widx) = 0 : wolf_vx(widx) = -wolf_vx(widx)
+    if wolf_x(widx) > 607 then wolf_x(widx) = 607 : wolf_vx(widx) = -wolf_vx(widx)
+    if wolf_y(widx) < 0 then wolf_y(widx) = 0 : wolf_vy(widx) = -wolf_vy(widx)
+    if wolf_y(widx) > 367 then wolf_y(widx) = 367 : wolf_vy(widx) = -wolf_vy(widx)
 
-  spr_ox%(S_WOLF1) = wolf_x(0)
-  spr_oy%(S_WOLF1) = wolf_y(0)
+    spr_ox%(S_WOLF1 + widx) = wolf_x(widx)
+    spr_oy%(S_WOLF1 + widx) = wolf_y(widx)
+
+.cnt_widx
+  next widx
 
   return
 
@@ -905,7 +960,7 @@ trap runstop_trapper
   anim_tmr = mod (anim_tmr + 1, 8)
 
   if anim_tmr = 0 then begin
-    for k = 0 to WOLF_MAX
+    for k = 0 to wolf_cnt
       fidx = spr_fidx&(S_WOLF1 + k)
       fidx = mod(fidx + 1, 2)
       spr_fidx&(S_WOLF1 + k) = fidx
