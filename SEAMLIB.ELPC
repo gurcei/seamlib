@@ -42,7 +42,7 @@
 #declare girl_vx, girl_vy, wolf_die(3), key_flag
 
 #declare gem_x(2), gem_y(2), gem_vx(2), gem_vy(2), chest_time
-#declare widx, wolf_cnt, bkp_d051&
+#declare widx, wolf_cnt, bkp_d051&, v, b$, jval
 
 #declare debug_bb = 0
 
@@ -862,6 +862,8 @@ trap runstop_trapper
 '----------
   get a$
 
+  bank 128 : jval = peek($dc00)
+
   if colour_cycle_flag = 1 then gosub carpet_controls
   
   if colour_cycle_flag = 0 then gosub normal_controls
@@ -874,19 +876,19 @@ trap runstop_trapper
 '---------------
 .carpet_controls
 '---------------
-  if a$ = KEY_LEFT and girl_vx > -5 then begin
+  if (a$ = KEY_LEFT or (not jval and 4)) and girl_vx > -5 then begin
     girl_vx = girl_vx - 1
   bend
 
-  if a$ = KEY_RIGHT and girl_vx < 5 then begin
+  if (a$ = KEY_RIGHT or (not jval and 8)) and girl_vx < 5 then begin
     girl_vx = girl_vx + 1
   bend
 
-  if a$ = KEY_UP and girl_vy > -5 then begin
+  if (a$ = KEY_UP or (not jval and 1)) and girl_vy > -5 then begin
     girl_vy = girl_vy - 1
   bend
 
-  if a$ = KEY_DOWN and girl_vy < 5 then begin
+  if (a$ = KEY_DOWN or (not jval and 2)) and girl_vy < 5 then begin
     girl_vy = girl_vy + 1
   bend
 
@@ -897,7 +899,7 @@ trap runstop_trapper
 
   spr_oy%(S_GIRL) = spr_oy%(S_GIRL) + girl_vy
 
-  if spr_oy%(S_GIRL) < 0 then spr_oy%(S_GIRL) = 0: girl_vy = -girl_vy
+  if spr_oy%(S_GIRL) < 16 then spr_oy%(S_GIRL) = 16: girl_vy = -girl_vy
   if spr_oy%(S_GIRL) > 367 then spr_oy%(S_GIRL) = 367 : girl_vy = -girl_vy
 
   return
@@ -906,29 +908,29 @@ trap runstop_trapper
 '---------------
 .normal_controls
 '---------------
-  if a$ = KEY_LEFT then begin
+  if (a$ = KEY_LEFT or (not jval and 4)) then begin
     spr_ox%(S_GIRL) = spr_ox%(S_GIRL) - 3
     if spr_ox%(S_GIRL) < 0 then spr_ox%(S_GIRL) = 0
   bend
 
-  if a$ = KEY_RIGHT then begin
+  if (a$ = KEY_RIGHT or (not jval and 8)) then begin
     spr_ox%(S_GIRL) = spr_ox%(S_GIRL) + 3
     if spr_ox%(S_GIRL) > 607 then spr_ox%(S_GIRL) = 607
   bend
 
-  if a$ = KEY_UP then begin
+  if (a$ = KEY_UP or (not jval and 1)) then begin
     spr_oy%(S_GIRL) = spr_oy%(S_GIRL) - 3
     if spr_oy%(S_GIRL) < 16 then spr_oy%(S_GIRL) = 16
   bend
 
-  if a$ = KEY_DOWN then begin
+  if (a$ = KEY_DOWN or (not jval and 2)) then begin
     spr_oy%(S_GIRL) = spr_oy%(S_GIRL) + 3
     if spr_oy%(S_GIRL) > 367 then spr_oy%(S_GIRL) = 367
   bend
 
   return
 
-
+  
 '----------
 .draw_score
 '----------
