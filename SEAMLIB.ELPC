@@ -44,6 +44,10 @@
 #declare gem_x(2), gem_y(2), gem_vx(2), gem_vy(2), chest_time
 #declare widx, wolf_cnt, bkp_d051&, v, b$, jval
 
+#declare title_chr_width%(10), title_chr_height%(10), title_char_idx%(10)
+#declare title_ox%(10), title_oy%(10), title_stage_x_offs%(10)
+#declare title_count
+
 #declare debug_bb = 0
 
 '-------
@@ -105,8 +109,17 @@
 #define S_WOLF4 = 11
 #define S_GIRL = 12
 
+' seam title sprites
+#define S_CHAR_S = 0
+#define S_CHAR_P = 1
+#define S_CHAR_R = 2
+#define S_CHAR_I = 3
+#define S_CHAR_N = 4
+#define S_CHAR_G = 5
+
 
 spr_count = SPR_MAX + 1
+title_count = 6
 
 trap runstop_trapper
 
@@ -119,21 +132,45 @@ trap runstop_trapper
   do while 1
     gosub title_screen
 
-    for sidx = 0 to spr_count - 1
-      gosub stage_object
-    next sidx
-
-    sidx = 0
     gosub main_game
   loop
 
   end
 
 
+'------------------
+.stage_game_objects
+'------------------
+  gosub prepare_interface_vars_for_game
+
+  for sidx = 0 to spr_count - 1
+    gosub stage_object
+  next sidx
+
+  sidx = 0
+  return
+
+
+'-------------------
+.stage_title_objects
+'-------------------
+  gosub prepare_interface_vars_for_title
+
+  for sidx = 0 to title_count - 1
+    gosub stage_title_object
+  next sidx
+
+  sidx = 0
+  return
+
+
 '------------
 .title_screen
 '------------
   gosub clrscreen
+
+  gosub stage_title_objects
+
 
   tclr = 0 : tx = 0 : ty = 0
   a$ = "======"
@@ -173,7 +210,7 @@ trap runstop_trapper
   k = fre(1)  ' garbage collect
 
   do while 1
-    get key a$
+    get a$
 
     if a$ = "1" then wolf_cnt = 0 : exit
     if a$ = "2" then wolf_cnt = 1 : exit
@@ -181,9 +218,59 @@ trap runstop_trapper
     if a$ = "4" then wolf_cnt = 3 : exit
     if a$ = "x" or a$ = KEY_MEGA_Q then goto cleanup
 
+    for k = 0 to title_count - 1
+      title_ox%(S_CHAR_S + k) = 100 + k * 40
+      title_oy%(S_CHAR_S + k) = 100
+    next k
+
+    gosub draw_objects
+
+    gosub cycle_colours
+
   loop
 
   gosub clrscreen
+
+  return
+
+
+'-------------------------------
+.prepare_interface_vars_for_game
+'-------------------------------
+  ' prepare interface vars for assembly
+  bank 0
+  wpoke $7e00, pointer(spr_ox%(0))
+  wpoke $7e02, pointer(spr_oy%(0))
+  wpoke $7e04, pointer(spr_chr_width%(0))
+  wpoke $7e06, pointer(spr_chr_height%(0))
+  wpoke $7e08, pointer(spr_char_idx%(0))
+  wpoke $7e0a, pointer(stage_x_offs%(0))
+  poke $7e0c, spr_count
+
+  wpoke $7e1a, pointer(spr_fidx&(0))
+  wpoke $7e1c, pointer(spr_frames&(0,0))
+  wpoke $7e1e, pointer(bb_cnt&(0))
+  wpoke $7e20, pointer(bb_tlx&(0,0))
+  wpoke $7e22, pointer(bb_tly&(0,0))
+  wpoke $7e24, pointer(bb_brx&(0,0))
+  wpoke $7e26, pointer(bb_bry&(0,0))
+  wpoke $7e28, pointer(spr_collide&(0,0))
+  bank 128
+  return
+
+
+'--------------------------------
+.prepare_interface_vars_for_title
+'--------------------------------
+  bank 0
+  wpoke $7e00, pointer(title_ox%(0))
+  wpoke $7e02, pointer(title_oy%(0))
+  wpoke $7e04, pointer(title_chr_width%(0))
+  wpoke $7e06, pointer(title_chr_height%(0))
+  wpoke $7e08, pointer(title_char_idx%(0))
+  wpoke $7e0a, pointer(title_stage_x_offs%(0))
+  poke $7e0c, title_count
+  bank 128
 
   return
 
@@ -207,25 +294,12 @@ trap runstop_trapper
   aptr_lo = pointer(a$) and $ff
   aptr_hi = pointer(a$) / 256
 
-  ' prepare interface vars for assembly
-  bank 0
-  wpoke $7e00, pointer(spr_ox%(0))
-  wpoke $7e02, pointer(spr_oy%(0))
-  wpoke $7e04, pointer(spr_chr_width%(0))
-  wpoke $7e06, pointer(spr_chr_height%(0))
-  wpoke $7e08, pointer(spr_char_idx%(0))
-  wpoke $7e0a, pointer(stage_x_offs%(0))
-  poke $7e0c, spr_count
-
-  wpoke $7e1a, pointer(spr_fidx&(0))
-  wpoke $7e1c, pointer(spr_frames&(0,0))
-  wpoke $7e1e, pointer(bb_cnt&(0))
-  wpoke $7e20, pointer(bb_tlx&(0,0))
-  wpoke $7e22, pointer(bb_tly&(0,0))
-  wpoke $7e24, pointer(bb_brx&(0,0))
-  wpoke $7e26, pointer(bb_bry&(0,0))
-  wpoke $7e28, pointer(spr_collide&(0,0))
-  bank 128
+  ' prepare title details
+  for k = 0 to title_count - 1
+    title_chr_width%(S_CHAR_S + k) = 5
+    title_chr_height%(S_CHAR_S + k) = 5
+    title_char_idx%(S_CHAR_S + k) = char_idx%(F_CHAR_S + k)
+  next k
 
   ' prepare sprite details
   spr_chr_width%(S_CARPET) = 3
@@ -398,14 +472,34 @@ trap runstop_trapper
     wpoke $40800 + y * WIDTH + 160 + stage_x_offs%(sidx) * 2 + (spr_chr_width%(sidx) + 1) * 2, 80 * 8
   next y
 
-  ' gosub draw_object
-
   return
 
+
+'------------------
+.stage_title_object
+'------------------
+  if sidx > 0 then begin
+    title_stage_x_offs%(sidx) = {x5F}
+      title_stage_x_offs%(sidx-1) + title_chr_width%(sidx-1) + 1
+  bend
+
+  for y = 0 to 49
+    ' prepare initial gotox char
+    poke $ff80000 + y * WIDTH + 160 + title_stage_x_offs%(sidx) * 2, %10010000
+    wpoke $40800 + y * WIDTH + 160 + title_stage_x_offs%(sidx) * 2, 80 * 8  ' keep off-screen initially
+
+    ' prepare ending gotox char
+    poke $ff80000 + y * WIDTH + 160 + title_stage_x_offs%(sidx) * 2 + (title_chr_width%(sidx) + 1) * 2, %10010000
+    wpoke $40800 + y * WIDTH + 160 + title_stage_x_offs%(sidx) * 2 + (title_chr_width%(sidx) + 1) * 2, 80 * 8
+  next y
+
+  return
 
 '---------
 .main_game
 '---------
+  gosub stage_game_objects
+
   score = 0 : health = 10
   gosub draw_score
   gosub draw_energy_bars
@@ -564,9 +658,7 @@ trap runstop_trapper
 '---------------------
 .handle_colour_cycling
 '---------------------
-  bank 0
-  sys $7f21, $0a * 16, 16
-  bank 128
+  gosub cycle_colours
 
   if (ti - cycle_start) > 10 then begin
     colour_cycle_flag = 0
@@ -581,6 +673,15 @@ trap runstop_trapper
   spr_oy%(S_CARPET) = spr_oy%(S_GIRL) + 8
   bend
 
+  return
+
+
+'-------------
+.cycle_colours
+'-------------
+  bank 0
+  sys $7f21, $0a * 16, 16
+  bank 128
   return
 
 
