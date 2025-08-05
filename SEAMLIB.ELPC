@@ -731,8 +731,8 @@ trap runstop_trapper
 
   for k = 0 to WOLF_MAX
 
-    wolf_x(k) = 100 + 500 * mod(k, 2)
-    wolf_y(k) = 100 + 300 * int(k / 2)
+    wolf_x(k) = 100 + 400 * mod(k, 2)
+    wolf_y(k) = 100 + 200 * int(k / 2)
 
     if k <= wolf_cnt then begin
       spr_ox%(S_WOLF1 + k) = wolf_x(k)
