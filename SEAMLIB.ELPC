@@ -1,6 +1,6 @@
 #output "seamlib"
 
-#define SPR_MAX = 13 - 1
+#define SPR_MAX = 10 - 1
 
 '--------
 .declares
@@ -57,7 +57,7 @@
 #define KEY_RIGHT = "{x1D}"
 #define KEY_MEGA_Q = "«"
 
-#define WIDTH = 270
+#define WIDTH = 240
 
 #define OP_COPY = 0
 #define OP_MIX  = 1
@@ -94,15 +94,12 @@
 #define S_BANANA = 1
 #define S_WBOTTLE = 2
 #define S_WOLF1 = 3
-#define S_WOLF2 = 4
-#define S_WOLF3 = 5
-#define S_WOLF4 = 6
-#define S_CHEST = 7
-#define S_KEY = 8
-#define S_GEM1 = 9
-#define S_GEM2 = 10
-#define S_GEM3 = 11
-#define S_GIRL = 12
+#define S_CHEST = 4
+#define S_KEY = 5
+#define S_GEM1 = 6
+#define S_GEM2 = 7
+#define S_GEM3 = 8
+#define S_GIRL = 9
 
 
 spr_count = SPR_MAX + 1
@@ -226,7 +223,9 @@ trap runstop_trapper
   spr_frame_count%(S_WBOTTLE) = 1
   spr_frames&(S_WBOTTLE, 0) = F_WBOTTLE
 
-  for k = 0 to 3
+#define WOLF_MAX = 0
+
+  for k = 0 to WOLF_MAX
     spr_chr_width%(S_WOLF1 + k) = 4
     spr_chr_height%(S_WOLF1 + k) = 4
     spr_char_idx%(S_WOLF1 + k) = char_idx%(F_WOLF1)
@@ -286,6 +285,9 @@ trap runstop_trapper
   bkp_d058& = peek($d058)
   bkp_d059& = peek($d059)
   bkp_d05e& = peek($d05e)
+
+  ' clear NORRDEL: when clear, double-buffering is used
+  clrbit $d051, 7
 
   ' set SEAM mode CHR16 + FCLRHI
   setbit $d054, 0
@@ -903,7 +905,7 @@ trap runstop_trapper
   anim_tmr = mod (anim_tmr + 1, 8)
 
   if anim_tmr = 0 then begin
-    for k = 0 to 3
+    for k = 0 to WOLF_MAX
       fidx = spr_fidx&(S_WOLF1 + k)
       fidx = mod(fidx + 1, 2)
       spr_fidx&(S_WOLF1 + k) = fidx
