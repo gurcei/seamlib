@@ -19,9 +19,12 @@ SPRING game
 - some music
 - sound effects
 - more baddies?
-- algebra dragon asking vietnamese questions?
-- a treasure box for the key to unlock?
-- flowers to collect? (to associate with 'spring'?)
+- thirst meter?
+- test on hardware
+- fix bug in pane drawing/hiding (after WIDTH change)
+- fix sprites that shouldn't colour cycle while baddie colour cycles
+SKIP- algebra dragon asking vietnamese questions?
+DONE- a treasure box for the key to unlock?
 - joystick control
 
 stretch goals
@@ -29,7 +32,7 @@ stretch goals
 - line tool
 DONE- box tool
 - pencil tool
-- fill tool
+PROGRESS- fill tool
 - circle tool
 - some mouse support
 - menu-bar
