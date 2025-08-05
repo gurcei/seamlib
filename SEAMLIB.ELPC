@@ -565,7 +565,7 @@ trap runstop_trapper
 .handle_colour_cycling
 '---------------------
   bank 0
-  sys $7f21, 16, 16
+  sys $7f21, $0a * 16, 16
   bank 128
 
   if (ti - cycle_start) > 10 then begin
@@ -1137,10 +1137,10 @@ trap runstop_trapper
 '---------------------
 .store_default_colours
 '---------------------
-  for k = 0 to 31
-    default_red&(k) = peek($d100+k)
-    default_green&(k) = peek($d200+k)
-    default_blue&(k) = peek($d300+k)
+  for k = 0 to 15
+    default_red&(k) = peek($d1a0+k)
+    default_green&(k) = peek($d2a0+k)
+    default_blue&(k) = peek($d3a0+k)
   next k
 
   return
@@ -1149,10 +1149,10 @@ trap runstop_trapper
 '-----------------------
 .restore_default_colours
 '-----------------------
-  for k = 0 to 31
-    poke $d100+k, default_red&(k)
-    poke $d200+k, default_green&(k)
-    poke $d300+k, default_blue&(k)
+  for k = 0 to 15
+    poke $d1a0+k, default_red&(k)
+    poke $d2a0+k, default_green&(k)
+    poke $d3a0+k, default_blue&(k)
   next k
 
   return

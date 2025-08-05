@@ -19,9 +19,8 @@ SPRING game
 - some music
 - sound effects
 - thirst meter?
-- fix sprites that shouldn't colour cycle while baddie colour cycles
-  - bottle, key and gems (maybe it's easier to just change wolf colours to slice a?)
 - fix initial spawning position of baddies to be evenly spaced
+DONE- fix sprites that shouldn't colour cycle while baddie colour cycles
 SKIP- better keyboard control?
 DONE- joystick control
 DONE- offer 'exit to basic' on main menu
