@@ -1,6 +1,6 @@
 Moana's todo list
 =================
-- draw main hero character (on paper is ok)
+DONE- draw main hero character (on paper is ok)
 
 seam-draw tool
 ==============
@@ -18,14 +18,16 @@ SPRING game
 - nicer title screen
 - some music
 - sound effects
-- more baddies?
 - thirst meter?
-- test on hardware
-- fix bug in pane drawing/hiding (after WIDTH change)
+DONE- offer 'exit to basic' on main menu
 - fix sprites that shouldn't colour cycle while baddie colour cycles
-SKIP- algebra dragon asking vietnamese questions?
-DONE- a treasure box for the key to unlock?
 - joystick control
+- better keyboard control?
+SKIP- algebra dragon asking vietnamese questions?
+SKIP- fix bug in pane drawing/hiding (after WIDTH change)
+DONE- more baddies?
+DONE- test on hardware
+DONE- a treasure box for the key to unlock?
 
 stretch goals
 -------------

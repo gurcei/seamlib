@@ -42,7 +42,7 @@
 #declare girl_vx, girl_vy, wolf_die(3), key_flag
 
 #declare gem_x(2), gem_y(2), gem_vx(2), gem_vy(2), chest_time
-#declare widx, wolf_cnt
+#declare widx, wolf_cnt, bkp_d051&
 
 #declare debug_bb = 0
 
@@ -166,6 +166,9 @@ trap runstop_trapper
   ty = ty + 2 : a$ = "  (4) Extreme"
   gosub draw_text
 
+  ty = ty + 4 : a$ = "  (X) Exit to BASIC"
+  gosub draw_text
+
 
   k = fre(1)  ' garbage collect
 
@@ -176,6 +179,7 @@ trap runstop_trapper
     if a$ = "2" then wolf_cnt = 1 : exit
     if a$ = "3" then wolf_cnt = 2 : exit
     if a$ = "4" then wolf_cnt = 3 : exit
+    if a$ = "x" or a$ = KEY_MEGA_Q then goto cleanup
 
   loop
 
@@ -305,7 +309,8 @@ trap runstop_trapper
   oldyy = INVALID
 
   print "{x93}";KEY_ESCAPE;"5";
-  
+
+  bkp_d051& = peek($d051)  
   bkp_d054& = peek($d054)
   bkp_d058& = peek($d058)
   bkp_d059& = peek($d059)
@@ -337,6 +342,8 @@ trap runstop_trapper
 .cleanup
   print "{x93}";my_err$
   trap
+  bank 128
+  poke $d051, bkp_d051&
   poke $d054, bkp_d054&
   poke $d058, bkp_d058&
   poke $d059, bkp_d059&
@@ -429,7 +436,7 @@ trap runstop_trapper
 '----------
 .game_logic
 '----------
-  for widx = 0 to wolf_cnt - 1
+  for widx = 0 to wolf_cnt
     if spr_collide&(S_GIRL, S_WOLF1 + widx) <> 0 then gosub handle_wolf_collision
   next widx
 
