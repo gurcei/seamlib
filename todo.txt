@@ -15,11 +15,11 @@ DONE- seamlib: add logic to assess bounding box collisions between sprites
 
 SPRING game
 -----------
-PROGRESS- nicer title screen
 - some music
 - sound effects
-- thirst meter?
-- limit health meter max
+SKIP- thirst meter?
+SKIP- limit health meter max
+DONE- nicer title screen
 DONE- fix initial spawning position of baddies to be evenly spaced
 DONE- fix sprites that shouldn't colour cycle while baddie colour cycles
 SKIP- better keyboard control?

@@ -46,7 +46,7 @@
 
 #declare title_chr_width%(10), title_chr_height%(10), title_char_idx%(10)
 #declare title_ox%(10), title_oy%(10), title_stage_x_offs%(10)
-#declare title_count
+#declare title_count, dr
 
 #declare debug_bb = 0
 
@@ -172,25 +172,21 @@ trap runstop_trapper
   gosub stage_title_objects
 
 
-  tclr = 0 : tx = 0 : ty = 0
-  a$ = "======"
-  gosub draw_text
+  tclr = 0 : tx = 0 : ty = 12
 
-  ty = ty + 1 : a$ = "SPRING"
-  gosub draw_text
+  a$ = "A game made by Moana and Gurce in 2025"
+  gosub draw_text_centred
 
-  ty = ty + 1 : a$ = "======  A game by Moana and Gurce"
-  gosub draw_text
+  ty = ty + 2 : a$ = "Made using Eleven + BASIC 65 + 'SEAMLIB' library."
+  gosub draw_text_centred
 
-  ty = ty + 2 : a$ = "Made using the 'seamlib' library."
-  gosub draw_text
+  ty = ty +4 : a$ = "Joystick port 2"
+  gosub draw_text_centred
 
-  ty = ty +2 : a$ = "Joystick port 2"
-  gosub draw_text
+  ty = ty + 4 : a$ = "Choose level of difficulty:"
+  gosub draw_text_centred
 
-  ty = ty + 2 : a$ = "Choose level of difficulty:"
-  gosub draw_text
-
+  tx = 30
   ty = ty + 2 : a$ = "  (1) Easy"
   gosub draw_text
 
@@ -206,8 +202,33 @@ trap runstop_trapper
   ty = ty + 4 : a$ = "  (X) Exit to BASIC"
   gosub draw_text
 
+  tx = 7
+  ty = ty + 4 : a$ = "Instructions:"
+  gosub draw_text
+
+  ty = ty + 1 : a$ = "------------:"
+  gosub draw_text
+
+  ty = ty + 1
+  a$ = "- Navigate your cute hero, Spring, to avoid the baddie wolves"
+  gosub draw_text
+
+  ty = ty + 1
+  a$ = "- Use key to unlock the chest to collect gems"
+  gosub draw_text
+
+  ty = ty + 1
+  a$ = "- Eat bananas and drink water to keep your health up"
+  gosub draw_text
+
+  ty = ty + 1
+  a$ = "- Use magic carpet to fly around faster and kill baddies"
+  gosub draw_text
 
   k = fre(1)  ' garbage collect
+
+  tx = 50
+  dr = 2
 
   do while 1
     get a$
@@ -218,21 +239,33 @@ trap runstop_trapper
     if a$ = "4" then wolf_cnt = 3 : exit
     if a$ = "x" or a$ = KEY_MEGA_Q then goto cleanup
 
-    for k = 0 to title_count - 1
-      title_ox%(S_CHAR_S + k) = 100 + k * 40
-      title_oy%(S_CHAR_S + k) = 100
-    next k
-
-    gosub draw_objects
-
-    gosub cycle_colours
+    gosub animate_title
 
   loop
 
   gosub clrscreen
 
+  gosub restore_default_colours
+
   return
 
+
+'-------------
+.animate_title
+'-------------
+  for k = 0 to title_count - 1
+    title_ox%(S_CHAR_S + k) = tx + k * 45
+    title_oy%(S_CHAR_S + k) = 40 - 30 * abs(sin(2 * ti + k * .6))
+  next k
+  tx = tx + dr
+  if tx > 360 then dr = -dr : tx = 360
+  if tx < 10 then dr = -dr : tx = 10
+
+  gosub draw_objects
+
+  gosub cycle_colours
+
+  return
 
 '-------------------------------
 .prepare_interface_vars_for_game
@@ -977,19 +1010,19 @@ trap runstop_trapper
 '---------------
 .carpet_controls
 '---------------
-  if (a$ = KEY_LEFT or (not jval and 4)) and girl_vx > -5 then begin
+  if (not jval and 4) and girl_vx > -5 then begin
     girl_vx = girl_vx - 1
   bend
 
-  if (a$ = KEY_RIGHT or (not jval and 8)) and girl_vx < 5 then begin
+  if (not jval and 8) and girl_vx < 5 then begin
     girl_vx = girl_vx + 1
   bend
 
-  if (a$ = KEY_UP or (not jval and 1)) and girl_vy > -5 then begin
+  if (not jval and 1) and girl_vy > -5 then begin
     girl_vy = girl_vy - 1
   bend
 
-  if (a$ = KEY_DOWN or (not jval and 2)) and girl_vy < 5 then begin
+  if (not jval and 2) and girl_vy < 5 then begin
     girl_vy = girl_vy + 1
   bend
 
@@ -1009,22 +1042,22 @@ trap runstop_trapper
 '---------------
 .normal_controls
 '---------------
-  if (a$ = KEY_LEFT or (not jval and 4)) then begin
+  if (not jval and 4) then begin
     spr_ox%(S_GIRL) = spr_ox%(S_GIRL) - 3
     if spr_ox%(S_GIRL) < 0 then spr_ox%(S_GIRL) = 0
   bend
 
-  if (a$ = KEY_RIGHT or (not jval and 8)) then begin
+  if (not jval and 8) then begin
     spr_ox%(S_GIRL) = spr_ox%(S_GIRL) + 3
     if spr_ox%(S_GIRL) > 607 then spr_ox%(S_GIRL) = 607
   bend
 
-  if (a$ = KEY_UP or (not jval and 1)) then begin
+  if (not jval and 1) then begin
     spr_oy%(S_GIRL) = spr_oy%(S_GIRL) - 3
     if spr_oy%(S_GIRL) < 16 then spr_oy%(S_GIRL) = 16
   bend
 
-  if (a$ = KEY_DOWN or (not jval and 2)) then begin
+  if (not jval and 2) then begin
     spr_oy%(S_GIRL) = spr_oy%(S_GIRL) + 3
     if spr_oy%(S_GIRL) > 367 then spr_oy%(S_GIRL) = 367
   bend
@@ -1125,6 +1158,14 @@ trap runstop_trapper
   bank 128
   ' border 0
 
+  return
+
+
+'-----------------
+.draw_text_centred
+'-----------------
+  tx = (80 - len(a$)) / 2
+  gosub draw_text
   return
 
 
