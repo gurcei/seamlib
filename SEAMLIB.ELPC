@@ -48,6 +48,8 @@
 #declare title_ox%(10), title_oy%(10), title_stage_x_offs%(10)
 #declare title_count, dr
 
+#declare snd_idx, snd_order(5)
+
 #declare debug_bb = 0
 
 '-------
@@ -136,6 +138,14 @@ trap runstop_trapper
   loop
 
   end
+
+
+'-----
+.boing
+'-----
+  sound snd_order(snd_idx), 20000, 10, 0, 100, 1000, 1
+  snd_idx = mod(snd_idx + 1, 6)
+  return
 
 
 '------------------
@@ -457,6 +467,12 @@ trap runstop_trapper
   poke $d021, 14
   poke $d020, 0
 
+  snd_order(0) = 1
+  snd_order(1) = 4
+  snd_order(2) = 2
+  snd_order(3) = 5
+  snd_order(4) = 3
+  snd_order(5) = 6
   return
 
 
@@ -637,12 +653,12 @@ trap runstop_trapper
     for k = 0 to 2
       if gem_x(k) <> 640 then begin
         gem_x(k) = gem_x(k) + gem_vx(k)
-        if gem_x(k) < 1 then gem_x(k) = 1 : gem_vx(k) = -gem_vx(k)
-        if gem_x(k) > 623 then gem_x(k) = 623 : gem_vx(k) = -gem_vx(k)
+        if gem_x(k) < 1 then gem_x(k) = 1 : gosub boing : gem_vx(k) = -gem_vx(k)
+        if gem_x(k) > 623 then gem_x(k) = 623 : gosub boing : gem_vx(k) = -gem_vx(k)
 
         gem_y(k) = gem_y(k) + gem_vy(k)
-        if gem_y(k) < 16 then gem_y(k) = 16 : gem_vy(k) = -gem_vy(k)
-        if gem_y(k) > 383 then gem_y(k) = 383 : gem_vy(k) = -gem_vy(k)
+        if gem_y(k) < 16 then gem_y(k) = 16 : gosub boing : gem_vy(k) = -gem_vy(k)
+        if gem_y(k) > 383 then gem_y(k) = 383 : gosub boing : gem_vy(k) = -gem_vy(k)
 
         spr_ox%(S_GEM1 + k) = gem_x(k)
         spr_oy%(S_GEM1 + k) = gem_y(k)
@@ -659,6 +675,8 @@ trap runstop_trapper
       score = score + 2000
       gosub draw_score
       k = fre(1)
+      sound snd_order(snd_idx), 14000, 5, 0, 8000, 800, 2
+      snd_idx = mod(snd_idx + 1, 6)
     bend
 
     if spr_collide&(S_GIRL, S_GEM2) then begin
@@ -666,6 +684,8 @@ trap runstop_trapper
       score = score + 2000
       gosub draw_score
       k = fre(1)
+      sound snd_order(snd_idx), 14000, 5, 0, 8000, 800, 2
+      snd_idx = mod(snd_idx + 1, 6)
     bend
 
     if spr_collide&(S_GIRL, S_GEM3) then begin
@@ -673,6 +693,8 @@ trap runstop_trapper
       score = score + 2000
       gosub draw_score
       k = fre(1)
+      sound snd_order(snd_idx), 14000, 5, 0, 8000, 800, 2
+      snd_idx = mod(snd_idx + 1, 6)
     bend
 
   bend
@@ -684,6 +706,10 @@ trap runstop_trapper
 .handle_chest_collision
 '----------------------
   if key_flag = 1 then begin
+
+    sound snd_order(snd_idx), 5000, 10, 02, 3000, 500, 1
+    snd_idx = mod(snd_idx + 1, 6)
+
 
     key_flag = 2
 
@@ -747,6 +773,9 @@ trap runstop_trapper
     cycle_start = ti
     girl_vx = 0
     girl_vy = 0
+
+    sound snd_order(snd_idx), 4000, 50, 2, 2000, 200, 0
+    snd_idx = mod(snd_idx + 1, 6)
   bend
   return
 
@@ -761,6 +790,10 @@ trap runstop_trapper
   gosub draw_energy_bars
 
   k = fre(1)  ' do garbage collection after any string work
+
+  sound snd_order(snd_idx), 5000, 30, 0, 1000, 600, 3
+  snd_idx = mod(snd_idx + 1, 6)
+
 
   sidx = S_WBOTTLE
   gosub spawn_item
@@ -779,6 +812,10 @@ trap runstop_trapper
 
   k = fre(1)  ' do garbage collection after any string work
 
+  sound snd_order(snd_idx), 1000, 20, 1, 500, 50, 3
+  snd_idx = mod(snd_idx + 1, 6)
+
+
   sidx = S_BANANA
   gosub spawn_item
   return
@@ -791,6 +828,9 @@ trap runstop_trapper
   gosub draw_score
   k = fre(1)  ' do garbage collection after any string work
 
+  sound snd_order(snd_idx), 5000, 10, 0, 3000, 200, 1
+  snd_idx = mod(snd_idx + 1, 6)
+
   key_flag = 1
 
   spr_ox%(S_KEY) = 640  ' workaround to hide
@@ -802,9 +842,13 @@ trap runstop_trapper
 .handle_wolf_collision
 '---------------------
   if colour_cycle_flag = 1 then begin
+    sound snd_order(snd_idx), 5000, 43, 0, 400, 500, 1
+    snd_idx = mod(snd_idx + 1, 6)
+
     score = score + 1000
     gosub draw_score
     k = fre(1)
+
     spr_ox%(S_WOLF1 + widx) = 640
     wolf_die(widx) = ti
 
@@ -813,6 +857,10 @@ trap runstop_trapper
     health = health - 1
     gosub draw_energy_bars
     k = fre(1)
+
+    sound snd_order(snd_idx), 1000, 5, 2, 3000, 500, 1
+    snd_idx = mod(snd_idx + 1, 6)
+
 
     if health = 0 then begin
       colour_cycle_flag = 0
@@ -860,7 +908,7 @@ trap runstop_trapper
   poke $7e11, pane_y%
   poke $7e12, pane_width%
   poke $7e13, pane_height%
-^^  sys to $7f09, i0
+  sys $7f09
   bank 128
   return
 
@@ -873,7 +921,7 @@ trap runstop_trapper
   poke $7e11, pane_y%
   poke $7e12, pane_width%
   poke $7e13, pane_height%
-^^  sys to $7f0c, i0
+  sys $7f0c
   bank 128
   return
 
@@ -998,10 +1046,10 @@ trap runstop_trapper
     wolf_x(widx) = wolf_x(widx) + wolf_vx(widx)
     wolf_y(widx) = wolf_y(widx) + wolf_vy(widx)
 
-    if wolf_x(widx) < 0 then wolf_x(widx) = 0 : wolf_vx(widx) = -wolf_vx(widx)
-    if wolf_x(widx) > 607 then wolf_x(widx) = 607 : wolf_vx(widx) = -wolf_vx(widx)
-    if wolf_y(widx) < 0 then wolf_y(widx) = 0 : wolf_vy(widx) = -wolf_vy(widx)
-    if wolf_y(widx) > 367 then wolf_y(widx) = 367 : wolf_vy(widx) = -wolf_vy(widx)
+    if wolf_x(widx) < 0 then wolf_x(widx) = 0 : gosub boing : wolf_vx(widx) = -wolf_vx(widx)
+    if wolf_x(widx) > 607 then wolf_x(widx) = 607 : gosub boing : wolf_vx(widx) = -wolf_vx(widx)
+    if wolf_y(widx) < 0 then wolf_y(widx) = 0 : gosub boing : wolf_vy(widx) = -wolf_vy(widx)
+    if wolf_y(widx) > 367 then wolf_y(widx) = 367 : gosub boing : wolf_vy(widx) = -wolf_vy(widx)
 
     spr_ox%(S_WOLF1 + widx) = wolf_x(widx)
     spr_oy%(S_WOLF1 + widx) = wolf_y(widx)
@@ -1049,13 +1097,13 @@ trap runstop_trapper
 
   spr_ox%(S_GIRL) = spr_ox%(S_GIRL) + girl_vx
 
-  if spr_ox%(S_GIRL) < 0 then spr_ox%(S_GIRL) = 0: girl_vx = -girl_vx
-  if spr_ox%(S_GIRL) > 607 then spr_ox%(S_GIRL) = 607 : girl_vx = -girl_vx
+  if spr_ox%(S_GIRL) < 0 then spr_ox%(S_GIRL) = 0 : gosub boing : girl_vx = -girl_vx
+  if spr_ox%(S_GIRL) > 607 then spr_ox%(S_GIRL) = 607 : gosub boing : girl_vx = -girl_vx
 
   spr_oy%(S_GIRL) = spr_oy%(S_GIRL) + girl_vy
 
-  if spr_oy%(S_GIRL) < 16 then spr_oy%(S_GIRL) = 16: girl_vy = -girl_vy
-  if spr_oy%(S_GIRL) > 367 then spr_oy%(S_GIRL) = 367 : girl_vy = -girl_vy
+  if spr_oy%(S_GIRL) < 16 then spr_oy%(S_GIRL) = 16: gosub boing : girl_vy = -girl_vy
+  if spr_oy%(S_GIRL) > 367 then spr_oy%(S_GIRL) = 367 : gosub boing : girl_vy = -girl_vy
 
   return
 
@@ -1106,6 +1154,7 @@ trap runstop_trapper
   a$ = KEY_REV_ON
 
   if health > 0 then begin
+    if health > 66 then health = 66
     for k = 0 to health - 1
       a$ = a$ + " "
     next k
@@ -1165,7 +1214,7 @@ trap runstop_trapper
   vsync 250
 '  border 3
   bank 0
-^^  sys to $7f00, i0
+  sys $7f00
   bank 128
   return
 

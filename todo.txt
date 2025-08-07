@@ -16,7 +16,7 @@ DONE- seamlib: add logic to assess bounding box collisions between sprites
 SPRING game
 -----------
 - some music
-- sound effects
+DONE- sound effects
 SKIP- thirst meter?
 SKIP- limit health meter max
 DONE- nicer title screen
