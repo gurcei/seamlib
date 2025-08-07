@@ -15,7 +15,10 @@ DONE- seamlib: add logic to assess bounding box collisions between sprites
 
 SPRING game
 -----------
-- some music
+- prepare upload of my tweaked 999999.bin rom
+- prepare final release disk
+- final test on hardware
+DONE- some music
 DONE- sound effects
 SKIP- thirst meter?
 SKIP- limit health meter max

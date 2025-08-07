@@ -246,36 +246,42 @@ trap runstop_trapper
   ty = ty + 2 : a$ = "Made using Eleven + BASIC 65 + 'SEAMLIB' library."
   gosub draw_text_centred
 
+  tclr = 14 + $40
   ty = ty +4 : a$ = "Joystick port 2"
   gosub draw_text_centred
 
+  tclr = 0 + $80  ' $80 = underline
   ty = ty + 4 : a$ = "Choose level of difficulty:"
   gosub draw_text_centred
 
+  tclr = 10 + $40
   tx = 30
   ty = ty + 2 : a$ = "  (1) Easy"
   gosub draw_text
 
+  tclr = 6 + $40
   ty = ty + 2 : a$ = "  (2) Medium"
   gosub draw_text
 
+  tclr = 3 + $40
   ty = ty + 2 : a$ = "  (3) Difficult"
   gosub draw_text
 
+  tclr = 0 + $40
   ty = ty + 2 : a$ = "  (4) Extreme"
   gosub draw_text
 
+  tclr = 13 + $40
   ty = ty + 2 : a$ = "  (X) Exit to BASIC"
   gosub draw_text
 
+  tclr = 0 + $80  ' $80 = underline
   tx = 7
   ty = ty + 2 : a$ = "Instructions:"
   gosub draw_text
 
-  ty = ty + 1 : a$ = "------------:"
-  gosub draw_text
-
-  ty = ty + 1
+  tclr = 0
+  ty = ty + 2
   a$ = "- Navigate your cute hero, Spring, to avoid the baddie wolves"
   gosub draw_text
 
