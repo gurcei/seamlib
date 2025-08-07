@@ -52,6 +52,25 @@
 
 #declare debug_bb = 0
 
+.music_vars
+'----------
+#define chunk_max = 50
+#declare chunk_cnt, chunk_idx, vidx, tmpo%, row
+#declare echo_m, echo_b, echo_sz = .05, chunk_rpt, echo_delay
+#declare v$(5,chunk_max), v
+#declare song$
+#declare v1$, v2$, v3$, v4$, v5$, v6$
+#declare curr_freq, curr_dir
+
+#declare seqcnt
+#declare seq_chunk(200), seq_extra(200)
+
+#declare plyptr, plyflag, ret%, tmp$, playidx%
+
+#declare attack, decay, sustain, release, waveform, pw
+
+#declare initial_run
+
 '-------
 .defines
 '-------
@@ -119,6 +138,7 @@
 #define S_CHAR_N = 4
 #define S_CHAR_G = 5
 
+#define CMD_LOOP = -3
 
 spr_count = SPR_MAX + 1
 title_count = 6
@@ -140,6 +160,39 @@ trap runstop_trapper
   end
 
 
+'--------------------
+.parse_current_seqptr
+'--------------------
+  ret% = 0
+  if plyptr = -1 then ret%=1:return
+  if rplay(1)<>0 then ret%=1:return
+
+  k = seq_chunk(plyptr)
+  
+  if k >= 0 then begin
+    chunk_idx = k
+    if chunk_rpt <= 0 then chunk_rpt = seq_extra(plyptr)
+    gosub play_chunk_idx
+    playidx% = playidx% + 1
+    ret% = 1
+  bend
+
+  plyptr = plyptr + 1
+
+  if k = CMD_LOOP then plyptr = 0
+
+  if plyptr >= seqcnt then plyflag = 0 : plyptr = -1
+  return
+
+
+'--------------
+.play_chunk_idx
+'--------------
+  play v$(0, chunk_idx), v$(1, chunk_idx), v$(2, chunk_idx), {x5F}
+       v$(3, chunk_idx), v$(4, chunk_idx), v$(5, chunk_idx)
+  return
+
+
 '-----
 .boing
 '-----
@@ -155,6 +208,7 @@ trap runstop_trapper
 
   for sidx = 0 to spr_count - 1
     gosub stage_object
+    gosub parse_current_seqptr
   next sidx
 
   sidx = 0
@@ -168,8 +222,10 @@ trap runstop_trapper
 
   for sidx = 0 to title_count - 1
     gosub stage_title_object
+    if initial_run = 0 then gosub parse_current_seqptr
   next sidx
 
+  initial_run = 0
   sidx = 0
   return
 
@@ -272,6 +328,7 @@ trap runstop_trapper
 
     gosub animate_title
 
+    gosub parse_current_seqptr
   loop
 
   gosub clrscreen
@@ -350,6 +407,11 @@ trap runstop_trapper
   bload "asmhelper"
   bank 128
   key off
+
+  initial_run = 1
+
+  song$ = "dragon.p"
+  gosub load_song
 
   print chr$(14);  ' lower-case
 
@@ -495,6 +557,8 @@ trap runstop_trapper
 
   key on
 
+  play
+
   end
 
 
@@ -592,6 +656,8 @@ trap runstop_trapper
     gosub check_box_collisions
 
     gosub game_logic
+
+    gosub parse_current_seqptr
   loop
 
   return
@@ -1367,5 +1433,70 @@ trap runstop_trapper
     poke $d3a0+k, default_blue&(k)
   next k
 
+  return
+
+
+'---------
+.load_song
+'---------
+  dopen #2,(song$),r,u8
+
+  ' load melody chunks
+  ' ------------------
+  input #2, chunk_cnt
+  for chunk_idx = 0 to chunk_cnt - 1
+    for vidx=0 to 5
+      input #2,v$(vidx, chunk_idx)
+    next vidx
+  next chunk_idx
+
+  input #2,tmpo%
+
+  tempo tmpo%
+  
+  ' load envelopes
+  ' --------------
+  for row = 0 to 9
+    input #2, tmp$
+    input #2, attack
+    input #2, decay
+    input #2, sustain
+    input #2, release
+    input #2, waveform
+    input #2, pw
+
+    envelope row, attack, decay, sustain, release, waveform, pw
+  next row
+  print
+
+  ' load filter presets
+  ' -------------------
+  for row = 0 to 10
+    input #2, tmp$
+    input #2, tmp
+    input #2, tmp
+    input #2, tmp
+    input #2, tmp
+    input #2, tmp
+    input #2, tmp
+    input #2, tmp
+    input #2, tmp
+  next row
+
+  ' load sequence
+  ' -------------
+  seqcnt = 0
+  input #2, seqcnt
+  row = 0
+  do while row < seqcnt
+    input #2, seq_chunk(row)
+    input #2, seq_extra(row)
+    row = row + 1
+  loop
+
+
+  dclose #2
+
+  chunk_idx = 0
   return
 ÿ
