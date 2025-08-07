@@ -174,7 +174,7 @@ trap runstop_trapper
 
   tclr = 0 : tx = 0 : ty = 12
 
-  a$ = "A game made by Moana and Gurce in 2025"
+  a$ = "A game made by Moana (and her daddy) in 2025"
   gosub draw_text_centred
 
   ty = ty + 2 : a$ = "Made using Eleven + BASIC 65 + 'SEAMLIB' library."
@@ -199,11 +199,11 @@ trap runstop_trapper
   ty = ty + 2 : a$ = "  (4) Extreme"
   gosub draw_text
 
-  ty = ty + 4 : a$ = "  (X) Exit to BASIC"
+  ty = ty + 2 : a$ = "  (X) Exit to BASIC"
   gosub draw_text
 
   tx = 7
-  ty = ty + 4 : a$ = "Instructions:"
+  ty = ty + 2 : a$ = "Instructions:"
   gosub draw_text
 
   ty = ty + 1 : a$ = "------------:"
@@ -225,7 +225,28 @@ trap runstop_trapper
   a$ = "- Use magic carpet to fly around faster and kill baddies"
   gosub draw_text
 
+  ty = ty + 3
+  tx = 2
+  a$ = "- The song is Gurce's cover of the 'Dungeons of the Algebra Dragons' theme"
+  gosub draw_text
+
+  ty = ty + 2
+  a$ = "- Consider supporting Moana and her daddy's games with a donation here:"
+  gosub draw_text
+
+  ty = ty + 2
+  tclr = 3
+  a$ = "  - https://paypal.me/gurcei"
+  gosub draw_text
+
+  ty = ty + 2
+  a$ = "  - https://patreon.com/gurce"
+  gosub draw_text
+
+  tclr = 0
+
   k = fre(1)  ' garbage collect
+
 
   tx = 50
   dr = 2
