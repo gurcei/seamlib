@@ -31,6 +31,8 @@ SPRING game
 - have a 'loading...' message for when resources are loaded from disk
   (so user doesn't worry that it has frozen/crashed)
 - final test on hardware
+  - lower volume on hardware during gameplay
+  - Make level of difficulty choice easier to read on monitor (green on blue looks bad)
 DONE- some music
 DONE- sound effects
 SKIP- thirst meter?

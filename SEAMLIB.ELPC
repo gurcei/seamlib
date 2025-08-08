@@ -69,7 +69,8 @@
 
 #declare attack, decay, sustain, release, waveform, pw
 
-#declare initial_run
+#declare initial_run, end_time
+
 
 '-------
 .defines
@@ -576,20 +577,21 @@ trap runstop_trapper
 
   ' clear screen
   for y = 0 to 49
-   for x = 0 to 79
-     poke $40800 + y * WIDTH + x * 2 + 1, 0
-   next x
+    for x = 0 to 79
+      poke $40800 + y * WIDTH + x * 2 + 1, 0
+    next x
+    gosub parse_current_seqptr  
   next y
 
   ' set all rhs_trim=7 for all off-screen chars initially
   tmp = WIDTH / 2 - 1
   for y = 0 to 49
-   for x = 80 to tmp
-     poke $40800 + y * WIDTH + x * 2 + 1, %11100000
-     poke $ff80000 + y * WIDTH + x * 2, %00000100
-   next x
+    for x = 80 to tmp
+      poke $40800 + y * WIDTH + x * 2 + 1, %11100000
+      poke $ff80000 + y * WIDTH + x * 2, %00000100
+    next x
+    gosub parse_current_seqptr
   next y
-
 
   return
 
@@ -943,7 +945,11 @@ trap runstop_trapper
       pane_height% = 5
       gosub show_centred_pane
 
-      sleep 2
+      ' sleep two secs with music polling
+      end_time = ti
+      do while (ti - end_time) < 2
+        gosub parse_current_seqptr
+      loop
 
       ' clear keyboard buffer
       for k = 0 to 16
