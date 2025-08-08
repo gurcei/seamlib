@@ -12,7 +12,8 @@ tod81:
 	c1541 -attach /c/Users/phuon/AppData/Roaming/xemu-lgb/mega65/hdos/112.D81 -delete moana3.bin -write moana3.bin
 
 fromd81:
-	c1541 -attach /c/Users/phuon/AppData/Roaming/xemu-lgb/mega65/hdos/112.D81 -read moana3.bin,s
+	c1541 -attach /c/Users/phuon/AppData/Roaming/xemu-lgb/mega65/hdos/112.D81 -read moana4.bin,s
+	c1541 -attach /c/Users/phuon/AppData/Roaming/xemu-lgb/mega65/hdos/112.D81 -read dragon.p,s
 
 xemu:
 	/c/projs/xemu/build/bin/xmega65.native -rom /c/projs/mega65-rom/newrom.bin -hdosvirt -uartmon :4510 -8 /C/Users/phuon/AppData/Roaming/xemu-lgb/mega65/hdos/112.D81 &> /dev/null &
