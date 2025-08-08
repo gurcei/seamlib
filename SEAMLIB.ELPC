@@ -238,6 +238,7 @@ trap runstop_trapper
 
   gosub stage_title_objects
 
+  vol 10, 10
 
   tclr = 0 : tx = 0 : ty = 12
 
@@ -645,6 +646,11 @@ trap runstop_trapper
   score = 0 : health = 10
   gosub draw_score
   gosub draw_energy_bars
+
+  ' lower music volume, but raise sound effect volume
+  vol 5, 5
+  poke $ffd3458, $f
+  poke $ffd34d8, $f
 
   gosub init_level
 
