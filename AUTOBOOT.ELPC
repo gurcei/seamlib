@@ -1,0 +1,650 @@
+' =======================
+' SILENT ENIGMA BOOT MENU
+' =======================
+
+#output "autoboot.c65"
+
+
+'-------
+.defines
+'-------
+#declare rom$, vm$, fname$
+#declare mask%, month%, year%, ds%, date$
+#declare fpga_hash$, reverse%, upper, lower
+#declare a$, k, offs, xemu_flag
+#declare rbw_clr, ctime, ret%
+
+#define TRUE = 1
+#define FALSE = 0
+
+'----
+.init
+'----
+  fast 40
+  bank 128
+  offs = $ffd3630
+  poke $d020, 0, 0
+  print chr$(27);"8"
+  'print chr$(142);  ' switch back to upper-case
+  print chr$(14);  ' lower-case
+
+
+'----
+.main
+'----
+  gosub show_main_menu
+
+  ctime=ti
+  do
+    if ti-ctime > .03 then begin
+      gosub cycle_colours
+      ctime=ti
+    bend
+    get a$
+  loop while a$=""
+
+  if a$="1" then gosub perform_checks
+  if a$="2" then gosub show_about
+  if a$="3" then gosub show_source_list
+  if a$="/" then print "{x93}bye!";:end
+  
+  goto main
+
+  end
+
+
+'-------------
+.cycle_colours
+'-------------
+  for k = 0 to 16
+    poke $ff80001+k, mod(rbw_clr+k,16) + 64
+  next k
+  rbw_clr = mod(rbw_clr + 1, 16)
+  return
+
+
+'--------------
+.show_main_menu
+'--------------
+  print "{x93}{x5}";
+  print "'{x1}{x90}S{x5}p{x1C}r{x9F}i";chr$(156);"n{x1E}g{x5}' -  {x9A}A game by Moana (and her daddy){x5}  -  12th August 2025"
+  print "========================"
+  print
+  print "{x9F}1{x5}) Play game"
+  print "{x9F}2{x5}) About this game"
+  print "{x9F}3{x5}) Browse the source code"
+  print "{x9F}/{x5}) Exit"
+
+  return
+
+
+'--------------
+.perform_checks
+'--------------
+  gosub xemu_check
+
+  if xemu_flag = 0 then begin
+    gosub core_check
+  bend
+
+  gosub rom_check
+
+  gosub ntsc_to_pal
+
+  clr
+  dload "silent"
+  return
+
+
+'------------------
+.is_core_date_older
+'------------------
+  if year% < 2024 then ret% = TRUE : return
+  if year% > 2024 then ret% = FALSE : return
+
+  if month% < 5 then ret% = TRUE : return
+  if month% > 5 then ret% = FALSE : return
+
+  if ds% < 24 then ret% = TRUE : return
+  if ds% > 24 then ret% = FALSE : return
+
+  ' final case of dates being equal
+  ret% = FALSE
+  return
+
+
+'----------
+.core_check
+'----------
+  gosub format_datestamp
+
+  gosub format_fpga_hash
+
+  gosub is_core_date_older
+
+  if fpga_hash$<>"e296c3c9" and ret% = TRUE then begin
+    print "{x93}{x11}{x11}{x1C}CORE WARNING{x5}: This demo presently works best using this core or newer:"
+    print "- Development core: {x1E}e296c3c9  2024-05-24{x5}"
+    print "-        Your core: {x1C}";fpga_hash$;"  ";date$;"{x5}"
+    print
+    print "For best demo performance:"
+    print "- Please download newer core from:"
+    print "  - {x9F}https://builder.mega65.org/job/mega65-core/job/development/{x5}"
+    print
+    print "- Unzip the '{x9F}mega65*.7z{x5}' file and locate the .cor file within"
+    print "- Place it on your sd-card"
+    print "- Power up with the '{x9F}no scroll{x5}' key and flash it to a spare slot"
+    print "- Select this core from the flash menu to run it"
+    print
+    print "{x1C}This core contains hyppo repairs needed by the demo{x5}:"
+    print "- fix to get/set map calls"
+    print "- fix to boot from 'MEGA659.ROM'"
+    print
+    print "If you have a newer development rom, it should work fine too."
+    print
+    print "{x9E}Press any key to continue...{x5}"
+    get key a$
+  bend
+
+  return
+
+
+'----------
+.show_about
+'----------
+  print "{x93}{x96}ABOUT{x5} (1/3)"
+  print  "====="
+  print "My daddy kept bugging me to write a game on his silly MEGA65 thing."
+  print "I finally relented and shared my game design vision with him on the"
+  print "condition that he do all the dumb code monkey work and leave all the"
+  print "important game design work to me, so that I have top billing in the"
+  print "credits, and I might consider giving him a little mention in passing."
+  print "Either that or I throw a few peanuts his way as a reward ;)"
+  
+  print
+
+  print "{x11}{x9E}Press any key to continue...{x5}"
+  get key a$
+
+  print "{x93}{x96}ABOUT{x5} (2/3)"
+  print  "====="
+
+  print "Ok, daddy's turn now. I thought it was time to finally bite the bullet"
+  print "and write a SEAM/RRB-based game in Eleven + BASIC 65."
+
+  print
+
+  print "It was challenging, required some assembly support routines to speed"
+  print "things up, but I'm happy we got to there.
+
+  print
+
+  print "On the whole, it's a simple, cute game, suitable for young children to"
+  print "improve their hand-eye coordination with a joystick. Some fun technical"
+  print "aspects of it were that:
+  print "- I had to write a few tools from scratch:"
+  print "  - A palette editor called 'PALETTE' (in Eleven/BASIC)"
+  print "  - A SEAM-FCM sprite drawing tool called 'SEAMDRAW' (in Eleven/BASIC)"
+  print "  - The 'SEAMLIB' library (with ACME Assembler on PC)
+  print "- The game is in 640x400 resolution"
+  print "- The game presents about 13 sprites on screen in the difficult level"
+
+  print
+
+  print "{x11}{x9E}Press any key to continue...{x5}"
+  get key a$
+
+  print "{x93}{x96}ABOUT{x5} (3/3)"
+  print  "====="
+
+  print "The music was my cover of the theme song from a very old and forgotten 
+  print "C64 game called 'Dungeon of the Algebra Dragons'."
+  print "My sister and I played this game to death back in our youth, and the"
+  print "annoyingly repetitive (yet catchy) theme is etched into our brains."
+  print "So see this cover as my attempt to pay homage to this early era of"
+  print "computer gaming. Sure, games looked cruder and simpler back then, but"
+  print "they still had their own charm!"
+  print "Oh, and in case you were wondering..."
+  print "Yes, the game music is performed by {x9F}BASIC 65's 'PLAY'{x5} command! ;)"
+
+  print
+
+  print "Much in the same way, I hope you enjoy this simple game and find a"
+  print "similar flavour of charm to it also. For the MEGA65 community, I"
+  print "feel like this is our 1983-era, us devs are skilling up and sharing"
+  print "their humble creations. But as time rolls on, skills will grow and"
+  print "our projects will get more ambitious, showcasing more and more of"
+  print "what the MEGA65 system is capable of."
+
+  print "So here's looking forward to the years ahead of us!"
+
+  print "{x11}{x9E}Press any key to continue...{x5}"
+  get key a$
+
+  a$=""
+  return
+
+
+'----------------
+.show_source_list
+'----------------
+  print "{x93}{x96}MAIN SOURCE FILES{x5}"
+  print "================="
+  print "{x9F}1{x5}) seamlib.el"
+  print "{x9F}2{x5}) palette.el"
+  print "{x9F}3{x5}) seamdraw.el"
+  print "{x9F}4{x5}) asmhelper.a"
+  print
+  print "{x96}MISC. FILES{x5}"
+  print "==========="
+  print "{x9F}5{x5}) melody.el"
+  print "{x9F}6{x5}) autoboot.el"
+  print
+  print "{x9F}/{x5}) Exit"
+  get key a$
+
+  if a$="1" then gosub silent_prj
+  if a$="2" then gosub silent_el
+  if a$="3" then gosub silent2_el
+  if a$="5" then gosub asmhelper_a
+
+  if a$="d" then gosub melody_el
+  if a$="e" then gosub autoboot_el
+
+  if a$="/" then a$="": return
+
+  goto show_source_list
+  return
+
+
+.autoload_11
+'-----------
+  print "{x93}autoload ";chr$(34);fname$;chr$(34):clr:dload "11boot.c65"
+  return
+
+
+.autoload_ma
+'-----------
+  poke $d020,6,6
+  print chr$(142);  ' switch back to upper-case
+  print "{x93}autoload ";chr$(34);fname$;chr$(34)
+  clr
+  dload "mega assembler"
+  return
+
+
+.silent_prj
+'----------
+  do
+    print "{x93}";
+    print "{x96}silent.prj{x5}"
+    print "=========="
+    print "The contents of this file aren't terribly exciting. It just lists the"
+    print "two main source files the project consists of:"
+    print "  - silent.el"
+    print "  - silent2.el"
+    print
+    print "Under the bonnet, Eleven will just paste both files into attic ram and"
+    print "treat them like they are one big file. It was a quick/dirty workaround"
+    print "to get around Eleven's 2000 source-line limitation and avoid BASIC"
+    print "string space exhaustion issues."
+    print
+    print "In order to compile the project from Eleven, load up this .prj file"
+    print "first, then press '{x9A}F5{x5}' (and wait patiently... ;))"
+    print
+    print "{x9F}RETURN{x5}) Open '{x96}silent.prj{x5}' in Eleven"
+    print "     {x9F}/{x5}) Exit"
+
+    get key a$
+    if a$=chr$(13) then fname$="silent.prj":goto autoload_11
+  loop while a$<>"/"
+  a$=""
+  return
+
+
+.silent_el
+'---------
+  do
+    print "{x93}";
+    print "{x96}silent.el{x5}"
+    print "========="
+    print "The main source file for the demo, and the location where all the"
+    print "individual examples I had needed to be stitched together."
+    print
+    print "The larger this file grew, the more slow and painful it became to"
+    print "iterate. Even using Xemu's '{x9A}-fastclock 200{x5}' option, while helpful,"
+    print "was still frustratingly slow."
+    print
+    print "To complicate things further, there was the 2000 line limit of Eleven"
+    print "and BASIC string space exhaustion to contend with."
+    print
+    print "Thankfully, I was able to push a little further thanks to the .prj"
+    print "workaround, but still, looking forward to the day Eleven builds a lot"
+    print "faster!"
+    print
+    print "Oh, and working around timing differences between Xemu and real hardware"
+    print "wasn't fun either!"
+    print
+    print "NOTE: To compile the pair of files, you must load '{x9A}silent.prj{x5}' first,"
+    print "      and then press '{x9A}F5{x5}'.
+    print
+    print "{x9F}RETURN{x5}) Open '{x96}silent.el{x5}' in Eleven"
+    print "     {x9F}/{x5}) Exit"
+
+    get key a$
+    if a$=chr$(13) then fname$="silent.el":goto autoload_11
+  loop while a$<>"/"
+  a$=""
+  return
+
+
+.silent2_el
+'----------
+  do
+    print "{x93}";
+    print "{x96}silent2.el{x5}"
+    print "=========="
+    print "After a while, '{x9A}silent.el{x5}' was growing so large that Eleven was"
+    print "running out of string space and approaching its 2000 line (of source)"
+    print "limit."
+    print
+    print "After tweaking Eleven to permit me to let a .prj file list several"
+    print "*.el files to be compiled as one single entity, I was able to continue"
+    print "growing the demo into this file!"
+    print
+    print "NOTE: To compile the pair of files, you must load '{x9A}silent.prj{x5}' first!"
+    print
+    print "{x9F}RETURN{x5}) Open '{x96}silent2.el{x5}' in Eleven"
+    print "     {x9F}/{x5}) Exit"
+
+    get key a$
+    if a$=chr$(13) then fname$="silent2.el":goto autoload_11
+  loop while a$<>"/"
+  a$=""
+  return
+
+
+.asmhelper_a
+'-----------
+  do
+    print "{x93}";
+    print "{x96}asmhelper.a{x5}"
+    print "==========="
+    print "After getting acquainted with {x1E}grim fandango{x5}'s '{x9A}MEGAPLOT{x5}' utility"
+    print "and its use of the {x9A}Acme{x5} compiler, its macro system was hard to resist."
+    print
+    print "So I inevitably made the switch from native Mega Assembler to Acme."
+    print
+    print "Ah well, I'm sure one day Mega Assembler will have such perks too!"
+    print
+    print "This '{x9A}asmhelper.a{x5}' is to be compiled on your PC via the Acme compiler."
+    print "I have provided it on this disk just to ease your viewing pleasure!"
+    print
+    print "I found Assembly to be a very time-expensive approach to development."
+    print "Simple 10 line BASIC routines seemed to take about half of my day to"
+    print "translate into 200 lines of assembly, and then I'd spend the other half"
+    print "of the day debugging it!"
+    print
+    print "{x9F}RETURN{x5}) Show '{x96}asmhelper.a{x5}' listing"
+    print "     {x9F}/{x5}) Exit"
+
+    get key a$
+    if a$=chr$(13) then fast 1:type "asmhelper.a":fast 40
+  loop while a$<>"/"
+  a$=""
+  return
+
+
+.melody_el
+'---------
+  do
+    print "{x93}";
+    print "{x96}melody.el{x5}"
+    print "========="
+    print "While I'm a big fan of BASIC 65's PLAY command, I admit that after "
+    print "manually sequencing play strings for several songs, it does get quite "
+    print "tedious. So I tried making this tool to make it easier for me to "
+    print "sequence such play strings."
+    print
+    print "I made use of this tool for the song used by this demo."
+    print
+    print "Usage:"
+    print "- Press {x9A}F5{x5} to build from source"
+    print "- Press {x9A}F1{x5} to load a song (try loading '{x9A}enigma.p{x5}')"
+    print "- Press {x9A}F9{x5} to open sequencer"
+    print "- Press {x9A}Shift+Return{x5} to play sequence"
+    print
+    print "{x9F}RETURN{x5}) Open '{x96}melody.el{x5}' in Eleven"
+    print " {x9F}SPACE{x5}) Run '{x96}playmaker{x5}' (compiled source)"
+    print "     {x9F}/{x5}) Exit"
+
+    get key a$
+    if a$=chr$(13) then fname$="melody.el":goto autoload_11
+    if a$=" " then clr:dload "playmaker"
+  loop while a$<>"/"
+  a$=""
+  return
+
+
+.autoboot_el
+'-----------
+  do
+    print "{x93}";
+    print "{x96}autoboot.el{x5}"
+    print "==========="
+    print "While preparing this boot menu (which is typically an '{x9A}autoboot.c65{x5}' file)"
+    print "I thought, why not write this in Eleven too?"
+    print
+    print "As I had wanted to have some core/rom/xemu check logic within it, I"
+    print "felt it was better to have such routines written in Eleven, so that"
+    print "they could be more easily copy/pasted into my (or even your!) future"
+    print "projects."
+    print
+    print "{x9F}RETURN{x5}) Open '{x96}autoboot.el{x5}' in Eleven"
+    print "     {x9F}/{x5}) Exit"
+
+    get key a$
+    if a$=chr$(13) then fname$="autoboot.el":goto autoload_11
+    if a$="/" then a$="":return
+    goto autoboot_el
+  loop while a$<>"/"
+  a$=""
+  return
+
+
+'----------
+.xemu_check
+'----------
+  if (peek($ffd360f) and $20)=0 then xemu_flag = 1
+
+  if xemu_flag = 0 then return
+
+  print "{x93}{x11}{x11}{x1E}XEMU NOTE{x5}: You are running this demo in the Xemu emulator."
+  print
+  print "Please note that some aspects of this demo run slightly faster"
+  print "under Xemu compared to real hardware (likely due to differences in"
+  print "how much time is consumed for dma calls, but still to be investigated)"
+  print
+  print "Apart from that, it should still run fine."
+  print "{x11}{x9E}Press any key to continue...{x5}"
+  get key a$
+  return
+
+
+'-----------
+.ntsc_to_pal
+'-----------
+  if (peek($d06f) and 128)=0 then vm$ = "pal":else vm$="ntsc"
+
+  if vm$ = "pal" then return
+
+  print "{x93}{x11}{x11}{x5}This program requires switching from {x1C}NTSC{x5} to {x1E}PAL{x5}"
+  print
+  print "Will switch over now."
+
+  print "{x11}{x9E}Press any key to continue...{x5}"
+  get key a$
+  poke $ffd306f,$00
+  poke $ffd3072,$00
+  poke $ffd3048,$68
+  poke $ffd3049,$00 or (peek($ffd3049) and $f0)
+  poke $ffd304a,$f8
+  poke $ffd304b,$01 or (peek($ffd304b) and $f0)
+  poke $ffd304e,$68
+  poke $ffd304f,$00 or (peek($ffd304f) and $f0)
+  poke $ffd3072,$00
+  poke $ffd3c0e, peek($ffd3c0e) or $80
+  poke $ffd3d0e, peek($ffd3d0e) or $80
+
+  return
+
+
+'---------
+.rom_check
+'---------
+  for k = 0 to 5
+    rom$=rom$ + chr$(peek($20017+k))
+  next k
+
+  if rom$<>"999999" then begin
+    print "{x93}{x11}{x11}{x1C}ROM WARNING{x5}: This demo presently works best using:"
+    print "- Experimental rom: {x1E}v999999{x5}"
+    print "-         Your rom: {x1C}v";rom$;"{x5}"
+    print
+    print "For best demo performance:"
+    print "- Please download it from {x9F}https://gurce.net/999999.bin{x5}"
+    print "- Rename it to '{x9F}MEGA65{x96}9{x9F}.ROM{x5}'"
+    print "    (yes, add the '{x96}9{x5}' to the end)"
+    print "- Place it on your sd-card"
+    print "- Reboot your mega65 while holding down the '{x96}9{x5}' key"
+    print
+    print "{x1C}If not done, you will experience music slowdown issues{x5} due to "
+    print "existing/older roms blocking basic 'PLAY' command while in sys calls"
+    print
+    print "Newer roms made after this demo will likely have repaired this matter."
+    print
+    print "{x9E}Press any key to continue...{x5}"
+    get key a$
+
+  bend
+  return
+
+
+'----------------
+.format_datestamp
+'----------------
+' A port of lydon's function in "freeze_megainfo.c"
+
+  mask% = $ff  ' for max10, would need to be $3f
+
+  month% = 1
+  year% = 2020
+  ds% = ((peek(offs + 1) and mask%) * 256) + peek(offs)
+
+  do while ds% > 366
+    year% = year% + 1
+    ds% = ds% - 366
+  loop
+
+  if month%=1 and ds%>31 then begin
+    month% = month% + 1
+    ds% = ds% - 31
+  bend
+
+  if month%=2 and not (year% and 3) and ds%>29 then begin
+    month% = month% + 1
+    ds% = ds% - 29
+  bend
+
+  if month%=2 and (year% and 3) and ds%>28 then begin
+    month% = month% + 1
+    ds% = ds% - 28
+  bend
+
+  if month%=3 and ds%>31 then begin
+    month% = month% + 1
+    ds% = ds% - 31
+  bend
+
+  if month%=4 and ds%>30 then begin
+    month% = month% + 1
+    ds% = ds% - 30
+  bend
+
+  if month%=5 and ds%>31 then begin
+    month% = month% + 1
+    ds% = ds% - 31
+  bend
+
+  if month%=6 and ds%>30 then begin
+    month% = month% + 1
+    ds% = ds% - 30
+  bend
+
+  if month%=7 and ds%>31 then begin
+    month% = month% + 1
+    ds% = ds% - 31
+  bend
+
+  if month%=8 and ds%>31 then begin
+    month% = month% + 1
+    ds% = ds% - 31
+  bend
+
+  if month%=9 and ds%>30 then begin
+    month% = month% + 1
+    ds% = ds% - 30
+  bend
+
+  if month%=10 and ds%>31 then begin
+    month% = month% + 1
+    ds% = ds% - 31
+  bend
+
+  if month%=11 and ds%>30 then begin
+    month% = month% + 1
+    ds% = ds% - 30
+  bend
+
+  date$=mid$(str$(year%),2)
+
+  if month% > 9 then begin
+    date$ = date$ + "-"
+  bend:else begin
+    date$ = date$ + "-0"
+  bend
+
+  date$ = date$ + mid$(str$(month%), 2)
+
+
+  if ds% > 9 then begin
+    date$ = date$ + "-"
+  bend:else begin
+    date$ = date$ + "-0"
+  bend
+
+  date$ = date$ + mid$(str$(ds%), 2)
+
+  return
+
+
+'----------------
+.format_fpga_hash
+'----------------
+' A port of lydon's function in "freeze_megainfo.c"
+
+  reverse% = 0  ' max10 is reversed
+
+  if reverse% then begin
+    upper = (peek(offs+2) * 256) + peek(offs+3)
+    lower = (peek(offs+4) * 256) + peek(offs+5)
+  bend:else:begin
+    upper = (peek(offs+5) * 256) + peek(offs+4)
+    lower = (peek(offs+3) * 256) + peek(offs+2)
+  bend
+
+  fpga_hash$ = hex$(upper) + hex$(lower)
+
+  return
+  
+ÿ

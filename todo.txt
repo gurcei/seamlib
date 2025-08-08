@@ -25,6 +25,7 @@ SPRING box
 
 SPRING game
 -----------
+- move any eleven tweaks back into eleven repo
 - prepare upload of my tweaked 999999.bin rom
   - base 999999.bin rom from latest stable rom release (not latest 'development')
 - prepare final release disk
