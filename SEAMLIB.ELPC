@@ -48,7 +48,7 @@
 #declare title_ox%(10), title_oy%(10), title_stage_x_offs%(10)
 #declare title_count, dr
 
-#declare snd_idx, snd_order(5)
+#declare snd_idx, snd_order(5), gx
 
 #declare debug_bb = 0
 
@@ -249,16 +249,37 @@ trap runstop_trapper
   gosub draw_text_centred
 
   tclr = 14 + $40
-  ty = ty +4 : a$ = "Joystick port 2"
+  ty = ty + 3 : a$ = "Joystick port 2"
   gosub draw_text_centred
 
   tclr = 0 + $80  ' $80 = underline
-  ty = ty + 4 : a$ = "Choose level of difficulty:"
+  ty = ty + 3 : a$ = "Choose level of difficulty:"
   gosub draw_text_centred
 
+  ty = ty + 2
+  tmp = ty
+  a$ = KEY_REV_ON + "                     "
+
+  for k = 0 to 10
+    tclr = 0
+    tx = 29
+    gosub draw_text
+
+    tx = 80
+    gx = 29 * 8
+    gosub draw_gotox_char
+
+    tx = 102
+    gx = 640
+    gosub draw_gotox_char
+
+    ty = ty +1
+  next k
+
   tclr = 10 + $40
-  tx = 30
-  ty = ty + 2 : a$ = "  (1) Easy"
+  tx = 81
+  ty = tmp + 1
+  a$ = "  (1) Easy"
   gosub draw_text
 
   tclr = 6 + $40
@@ -301,7 +322,7 @@ trap runstop_trapper
 
   ty = ty + 3
   tx = 2
-  a$ = "- The song is Gurce's cover of the 'Dungeons of the Algebra Dragons' theme"
+  a$ = "- The song is Gurce's cover of the 'Dungeon of the Algebra Dragons' theme"
   gosub draw_text
 
   ty = ty + 2
@@ -407,6 +428,9 @@ trap runstop_trapper
 '----
 .init
 '----
+  print chr$(14);  ' lower-case
+  print "Loading..."
+
   bank 0
   bload "game.pal",p($ffd3100)
   bload "chars.bin",p($40000),r
@@ -420,8 +444,6 @@ trap runstop_trapper
 
   song$ = "dragon.p"
   gosub load_song
-
-  print chr$(14);  ' lower-case
 
   gosub store_default_colours
 
@@ -618,6 +640,16 @@ trap runstop_trapper
   return
 
 
+'---------------
+.draw_gotox_char
+'---------------
+  ' prepare initial gotox char
+  poke $ff80000 + ty * WIDTH + tx * 2, %10010000
+  wpoke $40800 + ty * WIDTH + tx * 2, gx
+
+  return
+
+
 '------------------
 .stage_title_object
 '------------------
@@ -626,7 +658,7 @@ trap runstop_trapper
       title_stage_x_offs%(sidx-1) + title_chr_width%(sidx-1) + 1
   bend
 
-  for y = 0 to 49
+  for y = 0 to 19
     ' prepare initial gotox char
     poke $ff80000 + y * WIDTH + 160 + title_stage_x_offs%(sidx) * 2, %10010000
     wpoke $40800 + y * WIDTH + 160 + title_stage_x_offs%(sidx) * 2, 80 * 8  ' keep off-screen initially

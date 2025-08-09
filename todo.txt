@@ -15,9 +15,9 @@ DONE- seamlib: add logic to assess bounding box collisions between sprites
 
 SPRING box
 ----------
-- Moana to design box art
+DONE- Moana to design box art
 - find suitable box
-- purchase 3.5" floppy disks
+DONE- purchase 3.5" floppy disks
   - $42 (with shipping, for 11 disks, about $3.80 per disk)
 - design floppy disk sticker
 - add fun stickers of game characters inside box
@@ -25,15 +25,18 @@ SPRING box
 
 SPRING game
 -----------
-- move any eleven tweaks back into eleven repo
-- prepare upload of my tweaked 999999.bin rom
-  - base 999999.bin rom from latest stable rom release (not latest 'development')
+- assess Tony's Makefile changes for 11.D81 cleanup
+DONE- move any eleven tweaks back into eleven repo
+DONE- prepare upload of my tweaked 999999.bin rom
+  DONE- base 999999.bin rom from latest stable rom release (not latest 'development')
 - prepare final release disk
-- have a 'loading...' message for when resources are loaded from disk
+DONE- have a 'loading...' message for when resources are loaded from disk
   (so user doesn't worry that it has frozen/crashed)
 - final test on hardware
   - lower volume on hardware during gameplay
   - Make level of difficulty choice easier to read on monitor (green on blue looks bad)
+    - See if we can use c64 extended-mode background colours?
+- Add water meter, dying of dehydration
 DONE- some music
 DONE- sound effects
 SKIP- thirst meter?
