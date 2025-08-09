@@ -1,6 +1,6 @@
-' =======================
-' SILENT ENIGMA BOOT MENU
-' =======================
+' ==================
+' 'SPRING' BOOT MENU
+' ==================
 
 #output "autoboot.c65"
 
@@ -56,7 +56,7 @@
 '-------------
 .cycle_colours
 '-------------
-  for k = 0 to 16
+  for k = 0 to 5
     poke $ff80001+k, mod(rbw_clr+k,16) + 64
   next k
   rbw_clr = mod(rbw_clr + 1, 16)
@@ -67,8 +67,8 @@
 .show_main_menu
 '--------------
   print "{x93}{x5}";
-  print "'{x1}{x90}S{x5}p{x1C}r{x9F}i";chr$(156);"n{x1E}g{x5}' -  {x9A}A game by Moana (and her daddy){x5}  -  12th August 2025"
-  print "========================"
+  print "'{x1}{x90}S{x5}p{x1C}r{x9F}i";chr$(156);"n{x1E}g{x5}{x4}' -  {x9A}A game by Moana (and her daddy){x5}  -  12th August 2025"
+  print "========"
   print
   print "{x9F}1{x5}) Play game"
   print "{x9F}2{x5}) About this game"
@@ -92,7 +92,7 @@
   gosub ntsc_to_pal
 
   clr
-  dload "silent"
+  dload "seamlib"
   return
 
 
@@ -122,25 +122,19 @@
 
   gosub is_core_date_older
 
-  if fpga_hash$<>"e296c3c9" and ret% = TRUE then begin
-    print "{x93}{x11}{x11}{x1C}CORE WARNING{x5}: This demo presently works best using this core or newer:"
-    print "- Development core: {x1E}e296c3c9  2024-05-24{x5}"
-    print "-        Your core: {x1C}";fpga_hash$;"  ";date$;"{x5}"
+  if fpga_hash$<>"aaf4542" and ret% = TRUE then begin
+    print "{x93}{x11}{x11}{x1C}CORE WARNING{x5}: This game has been tested against this core:"
+    print "- 0.97 Release core: {x1E}aaf4542   2025-04-22{x5}"
+    print "-         Your core: {x1C}";fpga_hash$;"  ";date$;"{x5}"
     print
-    print "For best demo performance:"
-    print "- Please download newer core from:"
-    print "  - {x9F}https://builder.mega65.org/job/mega65-core/job/development/{x5}"
+    print "If experiencing problems, please download this core from the filehost:"
+    print "- {x9F}https://files.mega65.org{x5}"
+    print "  - search for 'core release' and choose your download target (r2, r3, r6)"
     print
     print "- Unzip the '{x9F}mega65*.7z{x5}' file and locate the .cor file within"
     print "- Place it on your sd-card"
     print "- Power up with the '{x9F}no scroll{x5}' key and flash it to a spare slot"
     print "- Select this core from the flash menu to run it"
-    print
-    print "{x1C}This core contains hyppo repairs needed by the demo{x5}:"
-    print "- fix to get/set map calls"
-    print "- fix to boot from 'MEGA659.ROM'"
-    print
-    print "If you have a newer development rom, it should work fine too."
     print
     print "{x9E}Press any key to continue...{x5}"
     get key a$
@@ -175,13 +169,13 @@
   print
 
   print "It was challenging, required some assembly support routines to speed"
-  print "things up, but I'm happy we got to there.
+  print "things up, but I'm happy we got to there."
 
   print
 
   print "On the whole, it's a simple, cute game, suitable for young children to"
   print "improve their hand-eye coordination with a joystick. Some fun technical"
-  print "aspects of it were that:
+  print "aspects of it were that:"
   print "- I had to write a few tools from scratch:"
   print "  - A palette editor called 'PALETTE' (in Eleven/BASIC)"
   print "  - A SEAM-FCM sprite drawing tool called 'SEAMDRAW' (in Eleven/BASIC)"
@@ -197,7 +191,7 @@
   print "{x93}{x96}ABOUT{x5} (3/3)"
   print  "====="
 
-  print "The music was my cover of the theme song from a very old and forgotten 
+  print "The music was my cover of the theme song from a very old and forgotten" 
   print "C64 game called 'Dungeon of the Algebra Dragons'."
   print "My sister and I played this game to death back in our youth, and the"
   print "annoyingly repetitive (yet catchy) theme is etched into our brains."
@@ -243,13 +237,13 @@
   print "{x9F}/{x5}) Exit"
   get key a$
 
-  if a$="1" then gosub silent_prj
-  if a$="2" then gosub silent_el
-  if a$="3" then gosub silent2_el
-  if a$="5" then gosub asmhelper_a
+  if a$="1" then gosub seamlib_el
+  if a$="2" then gosub palette_el
+  if a$="3" then gosub seamdraw_el
+  if a$="4" then gosub asmhelper_a
 
-  if a$="d" then gosub melody_el
-  if a$="e" then gosub autoboot_el
+  if a$="5" then gosub melody_el
+  if a$="6" then gosub autoboot_el
 
   if a$="/" then a$="": return
 
@@ -273,92 +267,80 @@
   return
 
 
-.silent_prj
+.seamlib_el
 '----------
   do
     print "{x93}";
-    print "{x96}silent.prj{x5}"
+    print "{x96}seamlib.el{x5}"
     print "=========="
-    print "The contents of this file aren't terribly exciting. It just lists the"
-    print "two main source files the project consists of:"
-    print "  - silent.el"
-    print "  - silent2.el"
+    print "This started off as an example of using the seamlib library, but then"
+    print "evolved into the actual 'Spring' game, so I probably should have renamed"
+    print "it to be called 'spring.el'...
     print
-    print "Under the bonnet, Eleven will just paste both files into attic ram and"
-    print "treat them like they are one big file. It was a quick/dirty workaround"
-    print "to get around Eleven's 2000 source-line limitation and avoid BASIC"
-    print "string space exhaustion issues."
+    print "This file is worth a browse for folks curious to see how the seamlib"
+    print "can be made use of."
     print
-    print "In order to compile the project from Eleven, load up this .prj file"
-    print "first, then press '{x9A}F5{x5}' (and wait patiently... ;))"
+    print "You're also able to modify and re-build the game to your liking, as a"
+    print "copy of the Eleven IDE is within this disk also."
     print
-    print "{x9F}RETURN{x5}) Open '{x96}silent.prj{x5}' in Eleven"
+    print "{x9F}RETURN{x5}) Open '{x96}seamlib.el{x5}' in Eleven"
     print "     {x9F}/{x5}) Exit"
 
     get key a$
-    if a$=chr$(13) then fname$="silent.prj":goto autoload_11
+    if a$=chr$(13) then fname$="seamlib.el":goto autoload_11
   loop while a$<>"/"
   a$=""
   return
 
 
-.silent_el
-'---------
+.palette_el
+'----------
   do
     print "{x93}";
-    print "{x96}silent.el{x5}"
-    print "========="
-    print "The main source file for the demo, and the location where all the"
-    print "individual examples I had needed to be stitched together."
+    print "{x96}palette.el{x5}"
+    print "=========="
+    print "I wanted a tool to help me design a palette for my game, allowing for"
+    print "easy creation of gradients."
     print
-    print "The larger this file grew, the more slow and painful it became to"
-    print "iterate. Even using Xemu's '{x9A}-fastclock 200{x5}' option, while helpful,"
-    print "was still frustratingly slow."
+    print "Alas, it doesn't have any in-built help system yet, but you can browse"
+    print "the source, searching for the 'user_input' routine, to get a sense of"
+    print "what it is capable of."
     print
-    print "To complicate things further, there was the 2000 line limit of Eleven"
-    print "and BASIC string space exhaustion to contend with."
+    print "I'll endeavour to add an in-built help system in future..."
     print
-    print "Thankfully, I was able to push a little further thanks to the .prj"
-    print "workaround, but still, looking forward to the day Eleven builds a lot"
-    print "faster!"
-    print
-    print "Oh, and working around timing differences between Xemu and real hardware"
-    print "wasn't fun either!"
-    print
-    print "NOTE: To compile the pair of files, you must load '{x9A}silent.prj{x5}' first,"
-    print "      and then press '{x9A}F5{x5}'.
-    print
-    print "{x9F}RETURN{x5}) Open '{x96}silent.el{x5}' in Eleven"
+    print "{x9F}RETURN{x5}) Open '{x96}palette.el{x5}' in Eleven"
+    print " {x9F}SPACE{x5}) Run '{x96}PALETTE{x5}' (compiled source)"
     print "     {x9F}/{x5}) Exit"
 
     get key a$
-    if a$=chr$(13) then fname$="silent.el":goto autoload_11
+    if a$=chr$(13) then fname$="palette.el":goto autoload_11
+    if a$=" " then clr:dload "palette"
   loop while a$<>"/"
   a$=""
   return
 
 
-.silent2_el
+.seamdraw_el
 '----------
   do
     print "{x93}";
-    print "{x96}silent2.el{x5}"
-    print "=========="
-    print "After a while, '{x9A}silent.el{x5}' was growing so large that Eleven was"
-    print "running out of string space and approaching its 2000 line (of source)"
-    print "limit."
+    print "{x96}seamdraw.el{x5}"
+    print "============"
+    print "I made this tool so that I could quickly doodle seam-fcm sprites of"
+    print "any custom size I like. It may not be the most efficient use of character"
+    print "data, but it gets the job done in a simple, straightforward way."
     print
-    print "After tweaking Eleven to permit me to let a .prj file list several"
-    print "*.el files to be compiled as one single entity, I was able to continue"
-    print "growing the demo into this file!"
+    print "Again, apologies for the lack of in-built help/documentation, but hopefully"
+    print "searching the code for 'user_input' will show you all the available"
+    print "capabilities."
     print
-    print "NOTE: To compile the pair of files, you must load '{x9A}silent.prj{x5}' first!"
-    print
-    print "{x9F}RETURN{x5}) Open '{x96}silent2.el{x5}' in Eleven"
+    print "{x9F}RETURN{x5}) Open '{x96}seamdraw.el{x5}' in Eleven"
+    print " {x9F}SPACE{x5}) Run '{x96}SEAMDRAW{x5}' (compiled source)"
     print "     {x9F}/{x5}) Exit"
 
     get key a$
-    if a$=chr$(13) then fname$="silent2.el":goto autoload_11
+    if a$=chr$(13) then fname$="seamdraw.el":goto autoload_11
+    if a$=" " then clr:dload "seamdraw"
   loop while a$<>"/"
   a$=""
   return
@@ -370,20 +352,17 @@
     print "{x93}";
     print "{x96}asmhelper.a{x5}"
     print "==========="
-    print "After getting acquainted with {x1E}grim fandango{x5}'s '{x9A}MEGAPLOT{x5}' utility"
-    print "and its use of the {x9A}Acme{x5} compiler, its macro system was hard to resist."
+    print "I really ought to rename this file to 'seamlib.a'..."
     print
-    print "So I inevitably made the switch from native Mega Assembler to Acme."
+    print "It is built via the {x9A}Acme{x5} compiler. My style of assembly coding has"
+    print "evolved to become very macro-intensive, as my eyes get more and more"
+    print "irritated at looking at large swathes of raw assembly opcodes."
     print
-    print "Ah well, I'm sure one day Mega Assembler will have such perks too!"
+    print "I also found this makes for a saner debugging experience, as while"
+    print "debugging in xemu, I can use the 'next' command to step over macros!"
     print
     print "This '{x9A}asmhelper.a{x5}' is to be compiled on your PC via the Acme compiler."
     print "I have provided it on this disk just to ease your viewing pleasure!"
-    print
-    print "I found Assembly to be a very time-expensive approach to development."
-    print "Simple 10 line BASIC routines seemed to take about half of my day to"
-    print "translate into 200 lines of assembly, and then I'd spend the other half"
-    print "of the day debugging it!"
     print
     print "{x9F}RETURN{x5}) Show '{x96}asmhelper.a{x5}' listing"
     print "     {x9F}/{x5}) Exit"
@@ -401,16 +380,15 @@
     print "{x93}";
     print "{x96}melody.el{x5}"
     print "========="
-    print "While I'm a big fan of BASIC 65's PLAY command, I admit that after "
-    print "manually sequencing play strings for several songs, it does get quite "
-    print "tedious. So I tried making this tool to make it easier for me to "
-    print "sequence such play strings."
-    print
-    print "I made use of this tool for the song used by this demo."
+    print "This is the same tool I used back in 'The Silent Enigma' demo, to sequence"
+    print "melody strings to suit BASIC 65's PLAY command. I don't think it has"
+    print "evolved a great deal since last time. It's a quick and dirty tool that"
+    print "deserves more love to make it more aesthetically pleasing, but for now"
+    print "it does its job well enough."
     print
     print "Usage:"
     print "- Press {x9A}F5{x5} to build from source"
-    print "- Press {x9A}F1{x5} to load a song (try loading '{x9A}enigma.p{x5}')"
+    print "- Press {x9A}F1{x5} to load a song (try loading '{x9A}dragon.p{x5}')"
     print "- Press {x9A}F9{x5} to open sequencer"
     print "- Press {x9A}Shift+Return{x5} to play sequence"
     print
@@ -432,13 +410,11 @@
     print "{x93}";
     print "{x96}autoboot.el{x5}"
     print "==========="
-    print "While preparing this boot menu (which is typically an '{x9A}autoboot.c65{x5}' file)"
-    print "I thought, why not write this in Eleven too?"
+    print "I've recycled 'The Silent Enigma' demo's boot menu and tailored it for"
+    print "the 'Spring' game instead."
     print
-    print "As I had wanted to have some core/rom/xemu check logic within it, I"
-    print "felt it was better to have such routines written in Eleven, so that"
-    print "they could be more easily copy/pasted into my (or even your!) future"
-    print "projects."
+    print "It was a nice win to be able to re-use the existing core/rom/xemu check"
+    print "logic within it, was a good time saver."
     print
     print "{x9F}RETURN{x5}) Open '{x96}autoboot.el{x5}' in Eleven"
     print "     {x9F}/{x5}) Exit"
@@ -507,7 +483,7 @@
   next k
 
   if rom$<>"999999" then begin
-    print "{x93}{x11}{x11}{x1C}ROM WARNING{x5}: This demo presently works best using:"
+    print "{x93}{x11}{x11}{x1C}ROM WARNING{x5}: This game presently works best using:"
     print "- Experimental rom: {x1E}v999999{x5}"
     print "-         Your rom: {x1C}v";rom$;"{x5}"
     print
@@ -521,7 +497,7 @@
     print "{x1C}If not done, you will experience music slowdown issues{x5} due to "
     print "existing/older roms blocking basic 'PLAY' command while in sys calls"
     print
-    print "Newer roms made after this demo will likely have repaired this matter."
+    print "Newer roms will likely have repaired this matter."
     print
     print "{x9E}Press any key to continue...{x5}"
     get key a$
