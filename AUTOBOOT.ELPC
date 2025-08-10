@@ -81,7 +81,8 @@
 '--------------
 .perform_checks
 '--------------
-  gosub xemu_check
+  ' SPRING game works fine in xemu, so not a big worry there
+  ' gosub xemu_check
 
   if xemu_flag = 0 then begin
     gosub core_check
@@ -487,22 +488,33 @@
     print "- Experimental rom: {x1E}v999999{x5}"
     print "-         Your rom: {x1C}v";rom$;"{x5}"
     print
-    print "For best demo performance:"
-    print "- Please download it from {x9F}https://gurce.net/999999.bin{x5}"
-    print "- Rename it to '{x9F}MEGA65{x96}9{x9F}.ROM{x5}'"
-    print "    (yes, add the '{x96}9{x5}' to the end)"
-    print "- Place it on your sd-card"
-    print "- Reboot your mega65 while holding down the '{x96}9{x5}' key"
+    print "Would you like to temporarily switch to this rom?"
     print
-    print "{x1C}If not done, you will experience music slowdown issues{x5} due to "
+    print "{x1C}If you don't switch, you will experience music slowdown issues{x5} due to "
     print "existing/older roms blocking basic 'PLAY' command while in sys calls"
     print
     print "Future roms will likely repair this matter."
     print
-    print "{x9E}Press any key to continue...{x5}"
+    print "When that occurs, I will provide an updated version of the game on the"
+    print "filehost (https://files.mega65.org) to suit the newer rom."
+    print
+    print "If you experience any problems even after switching to this rom, please"
+    print "visit the MEGA65 discord server (https://mega65.org/chat) and send Gurce"
+    print "a message, and we can investigate any unusual problems."
+    print
+    print "- (Y)es, please temporarily switch to 999999 rom"
+    print "- (N)o, I'll stick with my existing rom'"
+
     get key a$
 
+    if a$ = "y" then gosub update_rom
   bend
+  return
+
+
+'----------
+.update_rom
+'----------
   return
 
 

@@ -691,6 +691,29 @@ array_spr_collide: !word $00    // 7E28  (spr_collide&[][])
   jmp preserve_data_behind_pane  // 7F1B
   jmp check_box_collisions  // 7F1E
   jmp cycle_alt_palette     // 7F21
+  jmp update_rom      // 7F24
+
+
+//--------
+update_rom:
+//--------
+		lda #0x02							; Disable C65 ROM write protection to restore basic IRQ vector
+		sta 0xd641
+		clv
+
+    # todo: protect basic irq vectors during this time?
+
+    # todo: use dma_copy_rom to copy rom down to right location
+
+		lda #0b00100000						; activate $c000 rom read-only again via $d030
+		tsb 0xd030
+
+		lda #0x00							; restore rom write protection
+		sta 0xd641
+		clv
+
+    # borrow mirage's logic to reset system and auto-start game
+    rts
 
 
 //---------------
@@ -2486,3 +2509,5 @@ dma_screen:
 +edma OP_FILL, WIDTH * 50, 32, $00, $0800, $04, $00
 dma_clr:
 +edma OP_FILL, WIDTH * 50, 0, $00, $0000, $08, $ff
+dma_copy_rom:
+# todo: from $800,0000 down to $2,0000
