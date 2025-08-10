@@ -312,7 +312,7 @@ trap runstop_trapper
   poke $7e11, pane_y%
   poke $7e12, pane_width%
   poke $7e13, pane_height%
-^^  sys to $7f09, i0
+  sys $7f09
   bank 128
   return
 
@@ -325,7 +325,7 @@ trap runstop_trapper
   poke $7e11, pane_y%
   poke $7e12, pane_width%
   poke $7e13, pane_height%
-^^  sys to $7f0c, i0
+  sys  $7f0c
   bank 128
   return
 
@@ -334,7 +334,7 @@ trap runstop_trapper
 .redraw_preserved_data
 '---------------------
   bank 0
-^^  sys to $7f0c, i0
+  sys $7f0c
   bank 128
   return
 
@@ -1110,7 +1110,7 @@ trap runstop_trapper
   poke $7e0f, tclr
   wpoke $7e14, value
 
-^^ sys to $7f0f, i0
+ sys $7f0f
   bank 128
   return
   
@@ -1136,7 +1136,7 @@ trap runstop_trapper
 .clrscreen
 '---------
   bank 0
-^^ sys to $7f06, i0
+ sys $7f06
   bank 128
   return
 
