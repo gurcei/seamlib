@@ -497,7 +497,7 @@
     print "{x1C}If not done, you will experience music slowdown issues{x5} due to "
     print "existing/older roms blocking basic 'PLAY' command while in sys calls"
     print
-    print "Newer roms will likely have repaired this matter."
+    print "Future roms will likely repair this matter."
     print
     print "{x9E}Press any key to continue...{x5}"
     get key a$
