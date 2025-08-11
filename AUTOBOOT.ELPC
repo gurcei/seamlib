@@ -177,8 +177,6 @@
   print "important game design work to me, so that I have top billing in the"
   print "credits, and I might consider giving him a little mention in passing."
   print "Either that or I throw a few peanuts his way as a reward ;)"
-  
-  print
 
   print "{x11}{x9E}Press any key to continue...{x5}"
   get key a$
@@ -208,8 +206,6 @@
   print "  - The 'SEAMLIB' library (with ACME Assembler on PC)"
   print "- The game is in 640x400 resolution"
   print "- The game presents about 13 sprites on screen in the difficult level"
-
-  print
 
   print "{x11}{x9E}Press any key to continue...{x5}"
   get key a$
