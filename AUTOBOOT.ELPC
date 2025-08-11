@@ -5,17 +5,27 @@
 #output "autoboot.c65"
 
 
-'-------
-.defines
-'-------
+'--------
+.declares
+'--------
 #declare rom$, vm$, fname$
 #declare mask%, month%, year%, ds%, date$
 #declare fpga_hash$, reverse%, upper, lower
 #declare a$, k, offs, xemu_flag
 #declare rbw_clr, ctime, ret%
+#declare line_cnt, ch, skip_flag
 
+
+'-------
+.defines
+'-------
 #define TRUE = 1
 #define FALSE = 0
+#define LINEFEED = 10
+#define RETURN = 13
+#define KEY_RETURN = chr$(13)
+#define KEY_ESC = chr$(27)
+
 
 '----
 .init
@@ -24,7 +34,7 @@
   bank 128
   offs = $ffd3630
   poke $d020, 0, 0
-  print chr$(27);"8"
+  print KEY_ESC;"8"
   'print chr$(142);  ' switch back to upper-case
   print chr$(14);  ' lower-case
 
@@ -32,6 +42,8 @@
 '----
 .main
 '----
+  gosub check_if_reboot_after_rom_switch
+
   gosub show_main_menu
 
   ctime=ti
@@ -51,6 +63,16 @@
   goto main
 
   end
+
+
+'--------------------------------
+.check_if_reboot_after_rom_switch
+'--------------------------------
+  if peek($40000) = asc("g") and peek($40001) = asc("i") {x5F}
+      and peek($40002) = asc("b") then begin
+    dload "seamlib"
+  bend
+  return
 
 
 '-------------
@@ -175,12 +197,15 @@
   print
 
   print "On the whole, it's a simple, cute game, suitable for young children to"
-  print "improve their hand-eye coordination with a joystick. Some fun technical"
-  print "aspects of it were that:"
+  print "improve their hand-eye coordination with a joystick. I like to think of it"
+  print "as a game that Mastertronics would have deemed worthy to release back in"
+  print "those days! :)"
+  print
+  print " Some fun technical aspects of it were that:"
   print "- I had to write a few tools from scratch:"
   print "  - A palette editor called 'PALETTE' (in Eleven/BASIC)"
   print "  - A SEAM-FCM sprite drawing tool called 'SEAMDRAW' (in Eleven/BASIC)"
-  print "  - The 'SEAMLIB' library (with ACME Assembler on PC)
+  print "  - The 'SEAMLIB' library (with ACME Assembler on PC)"
   print "- The game is in 640x400 resolution"
   print "- The game presents about 13 sprites on screen in the difficult level"
 
@@ -197,8 +222,9 @@
   print "My sister and I played this game to death back in our youth, and the"
   print "annoyingly repetitive (yet catchy) theme is etched into our brains."
   print "So see this cover as my attempt to pay homage to this early era of"
-  print "computer gaming. Sure, games looked cruder and simpler back then, but"
+  print "computer gaming. Sure, games looked crude and simple back then, but"
   print "they still had their own charm!"
+  print
   print "Oh, and in case you were wondering..."
   print "Yes, the game music is performed by {x9F}BASIC 65's 'PLAY'{x5} command! ;)"
 
@@ -276,7 +302,7 @@
     print "=========="
     print "This started off as an example of using the seamlib library, but then"
     print "evolved into the actual 'Spring' game, so I probably should have renamed"
-    print "it to be called 'spring.el'...
+    print "it to be called 'spring.el'..."
     print
     print "This file is worth a browse for folks curious to see how the seamlib"
     print "can be made use of."
@@ -306,6 +332,8 @@
     print "Alas, it doesn't have any in-built help system yet, but you can browse"
     print "the source, searching for the 'user_input' routine, to get a sense of"
     print "what it is capable of."
+    print "  - F1 = load palette file (e.g. try loading 'game.pal')"
+    print "  - F3 = save palette file"
     print
     print "I'll endeavour to add an in-built help system in future..."
     print
@@ -334,6 +362,9 @@
     print "Again, apologies for the lack of in-built help/documentation, but hopefully"
     print "searching the code for 'user_input' will show you all the available"
     print "capabilities."
+    print
+    print "  - F1 = load seam-data file (e.g. try loading 'moana4.bin')"
+    print "  - F3 = save seam-data file"
     print
     print "{x9F}RETURN{x5}) Open '{x96}seamdraw.el{x5}' in Eleven"
     print " {x9F}SPACE{x5}) Run '{x96}SEAMDRAW{x5}' (compiled source)"
@@ -369,9 +400,88 @@
     print "     {x9F}/{x5}) Exit"
 
     get key a$
-    if a$=chr$(13) then fast 1:type "asmhelper.a":fast 40
+    if a$=chr$(13) then begin
+      fname$ = "asmhelper.a"
+      gosub show_ascii
+      
+^^    font c
+      print chr$(14);  ' lower-case
+    bend
+
   loop while a$<>"/"
   a$=""
+  return
+
+
+'----------
+.show_ascii
+'----------
+  dopen #2, (fname$), r, u8
+
+  print chr$(147);
+  
+^^  font a
+    print chr$(14);  ' lower-case
+
+  line_cnt = 0
+  do
+    get#2, ch
+    if st then begin
+      dclose #2
+      print "<<< END OF FILE >>> - press RETURN key"
+      do
+        get key a$
+      loop while a$ <> KEY_RETURN
+      return
+    bend
+
+    skip_flag = 0
+    ' ascii-lowercase to petscii-lowercase
+    if ch >= 97 and ch <= 122 then begin
+      ch = ch - 32
+      skip_flag = 1
+    bend
+
+    ' ascii-uppercase to petscii uppercase
+    if skip_flag = 0 and ch >= 65 and ch <= 90 then begin
+      ch = ch + 128
+      skip_flag = 1
+    bend
+
+    ' look for linux /n eol char, and consider it to be return
+    if skip_flag = 0 and ch = LINEFEED then begin
+      ch = RETURN
+      line_cnt = line_cnt + 1
+      skip_flag = 1
+    bend
+
+    ' ascii underscore to petscii underscore (mega+p)
+    if skip_flag = 0 and ch = asc("{x5F}") then begin
+      ch = $af
+      skip_flag = 1
+    bend
+
+    ' ascii-caret to petscii up-arrow?
+    if skip_flag = 0 and ch = 94 then begin
+      ch = asc("^")
+      skip_flag = 1
+    bend
+
+    print chr$(ch);
+
+    if line_cnt = 23 then begin
+      print "{x9F}<<< MORE >>> Q = quit, any other key to show next page{x5}";
+      print KEY_ESC;"j";
+
+      get key a$
+      if a$ = "q" then dclose #2 : return
+      line_cnt = 0
+      print KEY_ESC;"q";
+    bend
+  loop
+
+  dclose #2
+
   return
 
 
@@ -416,6 +526,8 @@
     print
     print "It was a nice win to be able to re-use the existing core/rom/xemu check"
     print "logic within it, was a good time saver."
+    print
+    print "This time around, I also added some logic to help switch roms on the fly"
     print
     print "{x9F}RETURN{x5}) Open '{x96}autoboot.el{x5}' in Eleven"
     print "     {x9F}/{x5}) Exit"
@@ -490,10 +602,10 @@
     print
     print "Would you like to temporarily switch to this rom?"
     print
-    print "{x1C}If you don't switch, you will experience music slowdown issues{x5} due to "
+    print "{x1C}If you don't switch, you will experience music slowdown issues due to "
     print "existing/older roms blocking basic 'PLAY' command while in sys calls"
     print
-    print "Future roms will likely repair this matter."
+    print "{x5}Future roms will likely repair this matter."
     print
     print "When that occurs, I will provide an updated version of the game on the"
     print "filehost (https://files.mega65.org) to suit the newer rom."
@@ -502,12 +614,14 @@
     print "visit the MEGA65 discord server (https://mega65.org/chat) and send Gurce"
     print "a message, and we can investigate any unusual problems."
     print
-    print "- (Y)es, please temporarily switch to 999999 rom"
-    print "- (N)o, I'll stick with my existing rom'"
+    print "- ({x9F}Y{x5})es, please temporarily switch to v999999 experimental rom"
+    print "- ({x9F}N{x5})o thanks, I'll stick with my existing rom"
 
-    get key a$
-
-    if a$ = "y" then gosub update_rom
+    do while 1
+      get key a$
+      if a$ = "y" then gosub update_rom
+      if a$ = "n" then exit
+    loop
   bend
   return
 
@@ -515,6 +629,16 @@
 '----------
 .update_rom
 '----------
+  bload "asmhelper"
+  bload "999999.bin",p($8000000),r
+
+  ' add my gi-boot marker
+  poke $40000, asc("g"), asc("i"), asc("b")
+
+  ' wipe eleven's magic signature
+  poke $4ff00, 0, 0
+
+  bank 0 : sys $7f24 : bank 128
   return
 
 

@@ -46,6 +46,7 @@ OP_COPY = 0
 OP_MIX  = 1
 OP_SWAP = 2
 OP_FILL = 3
+OP_CHAIN = 4
 
 // MACROS
 // ======
@@ -617,8 +618,10 @@ OP_FILL = 3
 	!word $0000	// modulo (ignore)
 }
 
-!macro edma .cmd, .length, .src_addr, .src_bank, .dst_addr, .dst_bank, .dst_mb {
+!macro edma .cmd, .length, .src_addr, .src_bank, .src_mb, .dst_addr, .dst_bank, .dst_mb {
 	!byte $06	// disable transparency
+  !byte $80 // src addr MB selector
+  !byte .src_mb // source megabyte
 	!byte $81	// dest addr MB selector
 	!byte .dst_mb	// destination megabyte
 	!byte $00	// end of options
@@ -701,9 +704,15 @@ update_rom:
 		sta 0xd641
 		clv
 
-    # todo: protect basic irq vectors during this time?
+    // todo: protect basic irq vectors during this time?
 
-    # todo: use dma_copy_rom to copy rom down to right location
+    // todo: use dma_copy_rom to copy rom down to right location
+    lda #$00
+    sta $d702
+    lda #>dma_copy_rom
+    sta $d701
+    lda #<dma_copy_rom
+    sta $d705
 
 		lda #0b00100000						; activate $c000 rom read-only again via $d030
 		tsb 0xd030
@@ -712,13 +721,18 @@ update_rom:
 		sta 0xd641
 		clv
 
-    # borrow mirage's logic to reset system and auto-start game
+    // borrow mirage's logic to reset system and auto-start game
+    // see his "prepare_mega65_autostart_routine" stuff and onwards
+
+final_reset:
+		jmp (0xfffc)
     rts
 
 
 //---------------
 cycle_alt_palette:
-//---------------  // a = base colour to start from, x = number of colours (e.g. a=12, x=8 means cycle from 12 to 19)
+//---------------
+// a = base colour to start from, x = number of colours (e.g. a=12, x=8 means cycle from 12 to 19)
 	tay
 
   clc
@@ -2506,8 +2520,10 @@ max_clr_min_1: !byte $00
 max_cnt: !byte $00
 
 dma_screen:
-+edma OP_FILL, WIDTH * 50, 32, $00, $0800, $04, $00
++edma OP_FILL, WIDTH * 50, 32, $0, $00, $0800, $4, $00
 dma_clr:
-+edma OP_FILL, WIDTH * 50, 0, $00, $0000, $08, $ff
++edma OP_FILL, WIDTH * 50, 0, $0, $00, $0000, $8, $ff
 dma_copy_rom:
-# todo: from $800,0000 down to $2,0000
+// from $800,0000 down to $2,0000
++edma OP_COPY + OP_CHAIN, 0, $0000, $0, $80, $0000, $2, $00
++edma OP_COPY,            0, $0000, $1, $80, $0000, $3, $00

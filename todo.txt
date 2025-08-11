@@ -25,18 +25,30 @@ DONE- purchase 3.5" floppy disks
 
 SPRING game
 -----------
+- ponder Ayca's feedback on:
+  - giving the game a narrative
+  - giving the game a sense of progression
+    - naughty wolves have stolen all of Spring's toys from her room
+      - to give to their evil overlords, onion cake and the algebra dragon!
+      - each level gives you the chance to steal gems back from these overlords
+      - After you steal 30 of their gems, these overlords will get angry and
+      - might be willing to hand you back one of your toys, but only if you can
+      - correctly answer one of their questions about either the MEGA65, or mathematics! :)
 - assess Tony's Makefile changes for 11.D81 cleanup
+- prepare final release disk
+- Add water meter, dying of dehydration
+- Ask Moana to write some text in the 'About' section, thanking the user for choosing to get her game and hoping that they enjoy it.
+- final test on hardware
+  - lower volume on hardware during gameplay
+  - test boot script behaviour for core-version checking
+  - test boot script behaviour for ntsc-to-pal switching (is it needed for this game?)
+  DONE- Make level of difficulty choice easier to read on monitor (green on blue looks bad)
+DONE- add rom-switcher logic to boot script
+DONE- have a 'loading...' message for when resources are loaded from disk
+  (so user doesn't worry that it has frozen/crashed)
 DONE- move any eleven tweaks back into eleven repo
 DONE- prepare upload of my tweaked 999999.bin rom
   DONE- base 999999.bin rom from latest stable rom release (not latest 'development')
-- prepare final release disk
-DONE- have a 'loading...' message for when resources are loaded from disk
-  (so user doesn't worry that it has frozen/crashed)
-- final test on hardware
-  - lower volume on hardware during gameplay
-  - Make level of difficulty choice easier to read on monitor (green on blue looks bad)
-    - See if we can use c64 extended-mode background colours?
-- Add water meter, dying of dehydration
 DONE- some music
 DONE- sound effects
 SKIP- thirst meter?
