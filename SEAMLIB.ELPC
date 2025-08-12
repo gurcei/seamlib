@@ -2,6 +2,8 @@
 
 #define SPR_MAX = 13 - 1
 
+clr
+
 '--------
 .declares
 '--------
@@ -49,7 +51,7 @@
 #declare title_count, dr
 
 #declare snd_idx, snd_order(5), gx, water, iter, wolf_speed
-#declare carpet_time
+#declare carpet_time, hs_name$(3), hs_score(3)
 
 #declare debug_bb = 0
 
@@ -430,11 +432,25 @@ trap runstop_trapper
   return
 
 
+'------------------------
+.load_current_high_scores
+'------------------------
+  dopen #2, "scores", r, u8
+
+  for k = 0 to 3
+    input #2, hs_name$(k)
+    input #2, hs_score(k)
+  next k
+
+  dclose #2
+  return
+
+
 '----
 .init
 '----
   print chr$(14);  ' lower-case
-  print "Loading..."
+  print "Loading game..."
 
   bank 0
   bload "game.pal",p($ffd3100)
@@ -444,6 +460,8 @@ trap runstop_trapper
   bload "asmhelper"
   bank 128
   key off
+
+  gosub load_current_high_scores
 
   initial_run = 1
 
@@ -583,6 +601,15 @@ trap runstop_trapper
 .cleanup
   print "{x93}";my_err$
   trap
+
+  gosub do_cleanup
+
+  end
+
+
+'----------
+.do_cleanup
+'----------
   bank 128
   poke $d051, bkp_d051&
   poke $d054, bkp_d054&
@@ -593,8 +620,7 @@ trap runstop_trapper
   key on
 
   play
-
-  end
+  return
 
 
 '---------
@@ -657,6 +683,25 @@ trap runstop_trapper
 
   return
 
+
+'-------------
+.check_hiscore
+'-------------
+  if score >= hs_score(wolf_cnt) then begin
+    bank 0 : poke $1600, asc("h"), asc("s")
+    a$ = str$(score)
+    for k = 0 to len(a$)-1
+      poke $1602 + k, asc(mid$(a$,k+1,1))
+    next k
+    poke $1602 + len(a$), 0
+
+    gosub clrscreen
+    gosub do_cleanup
+    dload "hiscore"
+  bend
+
+  return
+
 '---------
 .main_game
 '---------
@@ -664,6 +709,7 @@ trap runstop_trapper
 
   score = 0 : health = 10 : water = 20
   gosub draw_score
+  gosub draw_hiscore
   gosub draw_energy_bars
 
   ' lower music volume, but raise sound effect volume
@@ -698,6 +744,8 @@ trap runstop_trapper
     gosub parse_current_seqptr
   loop
 
+  gosub check_hiscore
+
   return
 
 
@@ -726,6 +774,7 @@ trap runstop_trapper
   iter = iter + 1
 
   return
+
 
 '-----------------
 .handle_water_drop
@@ -1288,6 +1337,16 @@ trap runstop_trapper
 '----------
   tx = 0 : ty = 0 : tclr = 0
   a$ = "SCORE: " + str$(score)
+  gosub draw_text
+  return
+
+
+'------------
+.draw_hiscore
+'------------
+  tx = 40 : ty = 0 : tclr = 0
+  a$ = hs_name$(wolf_cnt) + "'s HIGH SCORE: " + str$(hs_score(wolf_cnt))
+  k = fre(1)
   gosub draw_text
   return
 
