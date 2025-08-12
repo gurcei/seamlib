@@ -52,7 +52,7 @@ test-xemu:
 	/c/projs/xemu/build/bin/xmega65.native -rom /c/projs/mega65-rom/newrom.bin -hdosvirt -uartmon :4510 -8 TEST.D81 &> /dev/null &
 
 xemu:
-	/c/projs/xemu/build/bin/xmega65.native -rom /c/users/phuon/Downloads/roms/920417.bin -hdosvirt -uartmon :4510 -8 SPRING.D81 &> /dev/null &
+	/c/projs/xemu/build/bin/xmega65.native -rom /c/projs/mega65-rom/newrom.bin -hdosvirt -uartmon :4510 -8 SPRING.D81 &> /dev/null &
 
 asmhelper.prg: asmhelper.a
 	acme --cpu m65 -v4 -l asmhelper.sym -r asmhelper.rep asmhelper.a
