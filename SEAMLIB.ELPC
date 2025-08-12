@@ -688,15 +688,17 @@ trap runstop_trapper
 .check_hiscore
 '-------------
   if score >= hs_score(wolf_cnt) then begin
+    gosub clrscreen
+
     bank 0 : poke $1600, asc("h"), asc("s")
     poke $1602, wolf_cnt  ' level index
-    a$ = str$(score)
+    a$ = mid$(str$(score), 2)
     for k = 0 to len(a$)-1
       poke $1603 + k, asc(mid$(a$,k+1,1))
     next k
     poke $1603 + len(a$), 0
+    bank 128
 
-    gosub clrscreen
     gosub do_cleanup
     dload "hiscore"
   bend

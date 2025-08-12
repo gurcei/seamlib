@@ -1,5 +1,7 @@
 #output "hiscore"
 
+clr
+
 '--------
 .declares
 '--------
@@ -7,7 +9,7 @@
 #declare tx, ty, chr, addr, x, y, vl, xx, yy, z, c$, tclr
 #declare idx, lvl_clr(3), cidx, rainbow_flag
 #declare default_hs_red&(32), default_hs_green&(32), default_hs_blue&(32)
-#declare tmr
+#declare tmr, ch, score$
 
 
 '-------
@@ -22,6 +24,8 @@
 .main
 '----
   gosub init
+
+  gosub check_if_new_high_score
 
   gosub load_current_high_scores
 
@@ -43,6 +47,54 @@
   loop
 
   end
+
+
+'-----------------------
+.check_if_new_high_score
+'-----------------------
+  if peek($1600) = asc("h") and peek($1601) = asc("s") then begin
+    poke $1600, 0, 0
+    idx = peek($1602)
+    a$ = ""
+    k = 0
+    do
+      ch = peek($1603 + k)
+      if ch = 0 then exit
+      a$ = a$ + chr$(ch)
+      k = k + 1
+    loop
+
+    k = fre(1)
+
+    score$ = a$
+    
+    tx = 0 : ty = 0 : tclr = -1
+    a$ = "Congratulations!"
+    gosub plot_centred_text
+
+    ty = ty + 12 : tclr = -1
+    a$ = "New High Score!"
+    gosub plot_centred_text
+
+    tx = 0 : ty = ty + 20 : tclr = lvl_clr(idx)
+    a$ = hs_level$(idx) + ": " + score$
+    gosub plot_centred_text
+
+    tx = 0 : ty = ty + 20 : tclr = 12
+    a$ = "Enter your name:"
+    gosub plot_text
+
+    tmr = ti
+    do
+      get a$
+      if ti - tmr > .1 then gosub cycle_hs_colours: tmr = ti
+    loop
+
+    end
+
+  bend
+
+  return
 
 
 '----------------
