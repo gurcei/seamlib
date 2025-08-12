@@ -3,13 +3,19 @@
 '--------
 .declares
 '--------
-#declare k, name$(3), score(3), level$(3), a$
+#declare k, hs_name$(3), hs_score(3), hs_level$(3), a$
+#declare tx, ty, chr, addr, x, y, vl, xx, yy, z, c$, tclr
+#declare idx, lvl_clr(3), cidx, rainbow_flag
+#declare default_hs_red&(32), default_hs_green&(32), default_hs_blue&(32)
+#declare tmr
 
 
 '-------
 .defines
 '-------
 #define KEY_ESCAPE = chr$(27)
+
+#define PLOT_PIXEL = $7f27
 
 
 '----
@@ -23,21 +29,55 @@
 
   gosub draw_hiscore_list
 
+  tmr = ti
   do
-    get key a$
-    if a$ = KEY_ESCAPE then dload "seamlib"
+    get a$
+    if a$ = "q" then exit
+    if a$ <> "" then begin
+      gosub restore_default_hs_colours
+      print chr$(147);
+      dload "seamlib"
+    bend
+
+    if ti - tmr > .1 then gosub cycle_hs_colours: tmr = ti
   loop
 
   end
 
 
+'----------------
+.cycle_hs_colours
+'----------------
+  bank 0
+  sys $7f21, $01 * 16, 16
+  bank 128
+  return
+
+
 '----
 .init
 '----
-  level$(0) = "Extreme"
-  level$(1) = "Difficult"
-  level$(2) = "Medium"
-  level$(3) = "Easy"
+  print chr$(147);
+
+  poke $d021, 0
+  poke $d020, 0
+
+  gosub store_default_hs_colours
+
+  bank 0
+  bload "asmhelper"
+  bank 128
+
+  hs_level$(0) = "Extreme"
+  hs_level$(1) = "Difficult"
+  hs_level$(2) = "Medium"
+  hs_level$(3) = "Easy"
+
+  lvl_clr(0) = 2
+  lvl_clr(1) = 7
+  lvl_clr(2) = 5
+  lvl_clr(3) = 6
+
   return
 
 
@@ -47,8 +87,8 @@
   dopen #2, "scores", r, u8
 
   for k = 0 to 3
-    input #2, name$(k)
-    input #2, score(k)
+    input #2, hs_name$(k)
+    input #2, hs_score(k)
   next k
 
   dclose #2
@@ -58,16 +98,132 @@
 '------------------
 .draw_hiscore_title
 '------------------
-  print "high-scores:"
-  print "==========="
+  tx = 0 : ty = 2 : tclr = -1
+  a$ = "HIGH SCORES"
+  gosub plot_centred_text
+  return
+
+
+'-----------------
+.plot_centred_text
+'-----------------
+  tx = (160 - len(a$)*8) / 2
+  gosub plot_text
+  return
+
+
+'---------
+.plot_text
+'---------
+  rainbow_flag = 0
+  if tclr = -1 then rainbow_flag = 1
+
+  for k = 0 to len(a$) - 1
+    c$ = mid$(a$, k + 1, 1)
+    chr = asc(c$)
+    
+    z = fre(1)
+    gosub petscii_to_screencode
+
+    if rainbow_flag=1 then tclr = cidx + $40 : cidx = mod(cidx + 1, 16)
+
+    gosub plot_chr
+    tx = tx + 8
+  next k
+
+  return
+
+
+'--------
+.plot_chr
+'--------
+  addr = $2d800 + chr * 8
+
+  for yy = 0 to 7
+
+    vl = peek(addr)
+
+    addr = addr + 1
+
+    y = ty + yy
+    x = tx
+
+    bank 0
+    for xx = 7 to 0 step -1
+      if (vl and (2 ^ xx)) <> 0 then sys PLOT_PIXEL, x, y, tclr
+      x = x + 1
+    next xx
+    bank 128
+
+  next yy
+
+  return
+
+
+'---------------------
+.petscii_to_screencode
+'---------------------
+  bank 0
+  poke $7e2a, chr
+  sys $7f2a
+  chr = peek($7e2a)
+  bank 128
   return
 
 
 '-----------------
 .draw_hiscore_list
 '-----------------
-  for k = 0 to 3
-    print level$(k) ; ": "; name$(k); " - score: "; score(k)
+  'for k = 0 to 3
+  '  print hs_level$(k) ; ": "; hs_name$(k); " - score: "; hs_score(k)
+  'next k
+
+  ty = 14
+  for idx = 0 to 3
+    tx = 8
+    tclr = lvl_clr(idx)
+    a$ = hs_level$(idx) + ":"
+    gosub plot_text
+
+    ty = ty + 8
+    tx = 16
+    a$ = hs_name$(idx)
+    gosub plot_text
+
+    tx = 8 * 10
+    a$ = str$(hs_score(idx))
+    gosub plot_text
+
+    ty = ty + 12
+  next idx
+
+  color 10
+  a$ = "Press any key to exit high score menu"
+  cursor (80 - len(a$)) / 2, 48
+  print a$;
+
+  return
+
+
+'-------------------------
+.store_default_hs_colours
+'-------------------------
+  for k = 0 to 15
+    default_hs_red&(k) = peek($d110+k)
+    default_hs_green&(k) = peek($d210+k)
+    default_hs_blue&(k) = peek($d310+k)
+  next k
+
+  return
+
+
+'-----------------------
+.restore_default_hs_colours
+'-----------------------
+  for k = 0 to 15
+    poke $d110+k, default_hs_red&(k)
+    poke $d210+k, default_hs_green&(k)
+    poke $d310+k, default_hs_blue&(k)
   next k
 
   return
