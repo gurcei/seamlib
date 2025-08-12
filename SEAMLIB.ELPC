@@ -48,7 +48,8 @@
 #declare title_ox%(10), title_oy%(10), title_stage_x_offs%(10)
 #declare title_count, dr
 
-#declare snd_idx, snd_order(5), gx
+#declare snd_idx, snd_order(5), gx, water, iter, wolf_speed
+#declare carpet_time
 
 #declare debug_bb = 0
 
@@ -313,7 +314,11 @@ trap runstop_trapper
   gosub draw_text
 
   ty = ty + 1
-  a$ = "- Eat bananas and drink water to keep your health up"
+  a$ = "- Eat bananas to keep your health up"
+  gosub draw_text
+
+  ty = ty + 1
+  a$ = "- Drink water to prevent dehydration"
   gosub draw_text
 
   ty = ty + 1
@@ -601,31 +606,6 @@ trap runstop_trapper
 
   return
 
-  ' TODO: remove if assembly routine works
-  edma OP_FILL, WIDTH * 50, 32, $40800
-  edma OP_FILL, WIDTH * 50, 0, $ff80000
-
-  ' clear screen
-  for y = 0 to 49
-    for x = 0 to 79
-      poke $40800 + y * WIDTH + x * 2 + 1, 0
-    next x
-    gosub parse_current_seqptr  
-  next y
-
-  ' set all rhs_trim=7 for all off-screen chars initially
-  tmp = WIDTH / 2 - 1
-  for y = 0 to 49
-    for x = 80 to tmp
-      poke $40800 + y * WIDTH + x * 2 + 1, %11100000
-      poke $ff80000 + y * WIDTH + x * 2, %00000100
-    next x
-    gosub parse_current_seqptr
-  next y
-
-  return
-
-
 
 '------------
 .stage_object
@@ -682,14 +662,19 @@ trap runstop_trapper
 '---------
   gosub stage_game_objects
 
-  score = 0 : health = 10
+  score = 0 : health = 10 : water = 20
   gosub draw_score
   gosub draw_energy_bars
 
   ' lower music volume, but raise sound effect volume
   vol 5, 5
-  poke $ffd3458, $f
-  poke $ffd34d8, $f
+  ' for music
+  poke $ffd3458, $7  ' SID3 @ $D440
+  poke $ffd3418, $7  ' SID1 @ $D400
+  ' for sound
+  poke $ffd3478, $f  ' SID4 @ $D460
+  poke $ffd3438, $f  ' SID2 @ $D420
+
 
   gosub init_level
 
@@ -737,6 +722,40 @@ trap runstop_trapper
 
   if key_flag >= 2 then gosub handle_chest_visibility
 
+  if mod(iter, 25) = 0 then gosub handle_water_drop
+  iter = iter + 1
+
+  return
+
+'-----------------
+.handle_water_drop
+'-----------------
+  water = water - 1
+  gosub draw_energy_bars
+  if water = 0 then begin
+    colour_cycle_flag = 0
+    gosub restore_default_colours
+
+    gosub clrscreen
+
+    tclr = 2 : a$ = "You died of dehydration!"
+    pane_width% = len(a$) + 4
+    pane_height% = 5
+    gosub show_centred_pane
+
+    ' sleep two secs with music polling
+    end_time = ti
+    do while (ti - end_time) < 2
+      gosub parse_current_seqptr
+    loop
+
+    ' clear keyboard buffer
+    for k = 0 to 16
+      get a$
+    next k
+            
+    game_over_flag = 1
+  bend
   return
 
 
@@ -859,7 +878,7 @@ trap runstop_trapper
 '---------------------
   gosub cycle_colours
 
-  if (ti - cycle_start) > 10 then begin
+  if (ti - cycle_start) > carpet_time then begin
     colour_cycle_flag = 0
     gosub restore_default_colours
 
@@ -903,7 +922,7 @@ trap runstop_trapper
 .handle_wbottle_collision
 '------------------------
   score = score + 400
-  health = health + 4
+  water = water + 8
 
   gosub draw_score
   gosub draw_energy_bars
@@ -1054,7 +1073,12 @@ trap runstop_trapper
 '----------
 .init_level
 '----------
-  spr_ox%(S_GIRL) = 30
+  iter = 0
+
+  wolf_speed = .1 + wolf_cnt / 10
+  carpet_time = 10 + wolf_cnt * 3
+
+  spr_ox%(S_GIRL) = 310
   spr_oy%(S_GIRL) = 220
 
   for k = 0 to WOLF_MAX
@@ -1152,8 +1176,8 @@ trap runstop_trapper
 
     radius = sqr(dx*dx + dy*dy)
 
-    if dx <> 0 then dx = .1 * dx / radius ' : else wolf_vx(widx) = 0
-    if dy <> 0 then dy = .1 * dy / radius ' : else wolf_vy(widx) = 0
+    if dx <> 0 then dx = wolf_speed * dx / radius ' : else wolf_vx(widx) = 0
+    if dy <> 0 then dy = wolf_speed * dy / radius ' : else wolf_vy(widx) = 0
 
     if colour_cycle_flag = 0 then begin
       wolf_vx(widx) = wolf_vx(widx) + dx
@@ -1279,8 +1303,29 @@ trap runstop_trapper
   a$ = KEY_REV_ON
 
   if health > 0 then begin
-    if health > 66 then health = 66
+    if health > 30 then health = 30
     for k = 0 to health - 1
+      a$ = a$ + " "
+    next k
+  bend
+
+  a$ = a$ + KEY_REV_OFF + " "
+
+  gosub draw_text
+
+
+  ' - - - - - - -
+
+  tx = 40 : ty = 1 : tclr = 0
+  a$ = "WATER: "
+  gosub draw_text
+
+  tx = 48 : tclr = 6
+  a$ = KEY_REV_ON
+
+  if water > 0 then begin
+    if water > 30 then water = 30
+    for k = 0 to water - 1
       a$ = a$ + " "
     next k
   bend
