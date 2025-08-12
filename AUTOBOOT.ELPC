@@ -89,7 +89,7 @@
 .show_main_menu
 '--------------
   print "{x93}{x5}";
-  print "'{x1}{x90}S{x5}p{x1C}r{x9F}i";chr$(156);"n{x1E}g{x5}{x4}' -  {x9A}A game by Moana (and her daddy){x5}  -  12th August 2025"
+  print "'{x1}{x90}S{x5}p{x1C}r{x9F}i";chr$(156);"n{x1E}g{x5}{x4}' -  {x9A}A game by Moana (and her daddy){x5}  -  20th August 2025"
   print "========"
   print
   print "{x9F}1{x5}) Play game"
@@ -388,6 +388,9 @@
     print
     print "I also found this makes for a saner debugging experience, as while"
     print "debugging in xemu, I can use the 'next' command to step over macros!"
+    print
+    print "If you prefer viewing the file on your pc, take a look here:"
+    print "- https://github.com/gurcei/seamlib/blob/main/asmhelper.a"
     print
     print "This '{x9A}asmhelper.a{x5}' is to be compiled on your PC via the Acme compiler."
     print "I have provided it on this disk just to ease your viewing pleasure!"
