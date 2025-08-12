@@ -595,6 +595,13 @@ trap runstop_trapper
 '---------
 .clrscreen
 '---------
+  bank 0
+  sys $7f06
+  bank 128
+
+  return
+
+  ' TODO: remove if assembly routine works
   edma OP_FILL, WIDTH * 50, 32, $40800
   edma OP_FILL, WIDTH * 50, 0, $ff80000
 
@@ -658,7 +665,7 @@ trap runstop_trapper
       title_stage_x_offs%(sidx-1) + title_chr_width%(sidx-1) + 1
   bend
 
-  for y = 0 to 19
+  for y = 0 to 15
     ' prepare initial gotox char
     poke $ff80000 + y * WIDTH + 160 + title_stage_x_offs%(sidx) * 2, %10010000
     wpoke $40800 + y * WIDTH + 160 + title_stage_x_offs%(sidx) * 2, 80 * 8  ' keep off-screen initially
@@ -977,6 +984,8 @@ trap runstop_trapper
     if health = 0 then begin
       colour_cycle_flag = 0
       gosub restore_default_colours
+
+      gosub clrscreen
 
       tclr = 2 : a$ = "You died a gruesome death!"
       pane_width% = len(a$) + 4

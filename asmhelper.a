@@ -1637,6 +1637,20 @@ plot_char:
 //-------
 clrscreen:
 //-------
+  // assure these reset to default values after every clrscreen
+  // (otherwise sometimes it causes garbage chars drawn on the screen)
+  lda #$00
+  sta minyy
+  sta maxyy
+
+  ldx #$00
+  lda #$80
+-:
+  sta array_oldyy,x
+  inx
+  cpx #100
+  bne  -
+
 //  edma OP_FILL, WIDTH * 50, 32, $40800
   lda #$00
   sta $d702
@@ -1690,8 +1704,51 @@ clrscreen:
   cpy #50
   lbne --
 
-//  return
   rts
+
+//  ' set all rhs_trim=7 for all off-screen chars initially
+//  tmpw = WIDTH / 2 - 1
+    +set16 maxx, WIDTH
+    +lsr16 maxx
+
+//  for y = 0 to 49
+    ldy #$00
+--:
+
+//    for x = 80 to tmp
+      ldx #80
+      stx tx
+      sty ty
+      jsr prepare_screen_and_clr_pointers
+-:
+//      poke $40800 + y * WIDTH + x * 2 + 1, %11100000
+        ldz #$01
+        lda #%11100000
+        sta [PTR1],z
+        +inc32 PTR1
+        +inc32 PTR1
+
+//      poke $ff80000 + y * WIDTH + x * 2, %00000100
+        ldz #$00
+        lda #%00000100
+        sta [CLRPTR],z
+        +inc32 CLRPTR
+        +inc32 CLRPTR
+
+//    next x
+      inx
+      cpx maxx
+      lbne -
+//    gosub parse_current_seqptr
+      // skip this for assembly
+
+//  next y
+    iny
+    cpy #50
+    lbne --
+
+//  return
+    rts
 
 
 //-------
@@ -2469,6 +2526,7 @@ stringlen: !byte $00
 chr: !byte $00
 tmp: !byte $00
 tmpw: !word $00
+maxx: !word $00
 kptr: !byte $00
 
 // draw_pane
