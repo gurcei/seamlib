@@ -1,0 +1,74 @@
+#output "hiscore"
+
+'--------
+.declares
+'--------
+#declare k, name$(3), score(3), level$(3), a$
+
+
+'-------
+.defines
+'-------
+#define KEY_ESCAPE = chr$(27)
+
+
+'----
+.main
+'----
+  gosub init
+
+  gosub load_current_high_scores
+
+  gosub draw_hiscore_title
+
+  gosub draw_hiscore_list
+
+  do
+    get key a$
+    if a$ = KEY_ESCAPE then dload "seamlib"
+  loop
+
+  end
+
+
+'----
+.init
+'----
+  level$(0) = "Extreme"
+  level$(1) = "Difficult"
+  level$(2) = "Medium"
+  level$(3) = "Easy"
+  return
+
+
+'------------------------
+.load_current_high_scores
+'------------------------
+  dopen #2, "scores", r, u8
+
+  for k = 0 to 3
+    input #2, name$(k)
+    input #2, score(k)
+  next k
+
+  dclose #2
+  return
+
+
+'------------------
+.draw_hiscore_title
+'------------------
+  print "high-scores:"
+  print "==========="
+  return
+
+
+'-----------------
+.draw_hiscore_list
+'-----------------
+  for k = 0 to 3
+    print level$(k) ; ": "; name$(k); " - score: "; score(k)
+  next k
+
+  return
+ÿ
