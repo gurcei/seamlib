@@ -25,6 +25,7 @@ DONE- purchase 3.5" floppy disks
 
 SPRING game
 -----------
+- provide document to Ayca on game description, for use in printing a booklet
 - ponder Ayca's feedback on:
   - giving the game a narrative
   - giving the game a sense of progression
