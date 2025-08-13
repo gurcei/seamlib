@@ -53,6 +53,8 @@ clr
 #declare snd_idx, snd_order(5), gx, water, iter, wolf_speed
 #declare carpet_time, hs_name$(3), hs_score(3)
 
+#declare skip_some_init
+
 #declare debug_bb = 0
 
 .music_vars
@@ -252,11 +254,15 @@ trap runstop_trapper
   gosub draw_text_centred
 
   tclr = 14 + $40
-  ty = ty + 3 : a$ = "Joystick port 2"
+  ty = ty + 2 : a$ = "Joystick port 2"
+  gosub draw_text_centred
+
+  tclr = 17
+  ty = ty + 2 : a$ = "Press 'V' to view high scores"
   gosub draw_text_centred
 
   tclr = 0 + $80  ' $80 = underline
-  ty = ty + 3 : a$ = "Choose level of difficulty:"
+  ty = ty + 2 : a$ = "Choose level of difficulty:"
   gosub draw_text_centred
 
   ty = ty + 2
@@ -355,6 +361,11 @@ trap runstop_trapper
 
   do while 1
     get a$
+    if a$ = "v" then begin
+      gosub restore_default_colours
+      gosub do_cleanup
+      dload "hiscore"
+    bend
 
     if a$ = "1" then wolf_cnt = 0 : exit
     if a$ = "2" then wolf_cnt = 1 : exit
@@ -453,11 +464,21 @@ trap runstop_trapper
   print "Loading game..."
 
   bank 0
-  bload "game.pal",p($ffd3100)
-  bload "chars.bin",p($40000),r
+
+  skip_some_init = 0  
+  if peek($1600) = asc("z") and peek($1600) = asc("z") then begin
+    poke $1600, 0, 0
+    skip_some_init = 1
+  bend
+
+  if skip_some_init = 0 then begin
+    bload "game.pal",p($ffd3100)
+    bload "chars.bin",p($40000),r
+    bload "asmhelper"
+  bend
+
   ln$ = "moana4.bin"
   gosub load_data
-  bload "asmhelper"
   bank 128
   key off
 
@@ -687,11 +708,11 @@ trap runstop_trapper
 '-------------
 .check_hiscore
 '-------------
-  if score >= hs_score(wolf_cnt) then begin
+  if score >= hs_score(3 - wolf_cnt) then begin
     gosub clrscreen
 
     bank 0 : poke $1600, asc("h"), asc("s")
-    poke $1602, wolf_cnt  ' level index
+    poke $1602, 3 - wolf_cnt  ' level index
     a$ = mid$(str$(score), 2)
     for k = 0 to len(a$)-1
       poke $1603 + k, asc(mid$(a$,k+1,1))
@@ -1348,7 +1369,7 @@ trap runstop_trapper
 .draw_hiscore
 '------------
   tx = 40 : ty = 0 : tclr = 0
-  a$ = hs_name$(wolf_cnt) + "'s HIGH SCORE: " + str$(hs_score(wolf_cnt))
+  a$ = hs_name$(3 - wolf_cnt) + "'s HIGH SCORE: " + str$(hs_score(3 - wolf_cnt))
   k = fre(1)
   gosub draw_text
   return

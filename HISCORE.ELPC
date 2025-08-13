@@ -10,14 +10,15 @@ clr
 #declare idx, lvl_clr(3), cidx, rainbow_flag
 #declare default_hs_red&(32), default_hs_green&(32), default_hs_blue&(32)
 #declare tmr, ch, score$
-
+#declare cursor_tmr, cursor_tx, cursor_state, b$, name$
 
 '-------
 .defines
 '-------
 #define KEY_ESCAPE = chr$(27)
-
 #define PLOT_PIXEL = $7f27
+#define KEY_DEL = "{x14}"
+#define KEY_RETURN = chr$(13)
 
 
 '----
@@ -25,9 +26,9 @@ clr
 '----
   gosub init
 
-  gosub check_if_new_high_score
-
   gosub load_current_high_scores
+
+  gosub check_if_new_high_score
 
   gosub draw_hiscore_title
 
@@ -40,6 +41,7 @@ clr
     if a$ <> "" then begin
       gosub restore_default_hs_colours
       print chr$(147);
+      bank 0 : poke $1600, asc("z"), asc("z") : bank 128
       dload "seamlib"
     bend
 
@@ -85,15 +87,88 @@ clr
     gosub plot_text
 
     tmr = ti
+    cursor_tmr = ti - 1
+    cursor_tx = 0
+    ty = ty + 8
+    cursor_state = 0
     do
-      get a$
-      if ti - tmr > .1 then gosub cycle_hs_colours: tmr = ti
+      gosub handle_cursor
+
+      if (ti - tmr) > .1 then begin
+        gosub cycle_hs_colours
+        tmr = ti
+      bend
+
+      gosub handle_name_input
+
+      if a$ = KEY_RETURN and name$<>"" then exit
     loop
 
-    end
+    print chr$(147);
+    hs_name$(idx) = name$
+    hs_score(idx) = val(score$)
 
+    gosub save_hiscores
   bend
 
+  return
+
+
+'-----------------
+.handle_name_input
+'-----------------
+  get a$
+  if (a$ >= "a" and a$ <= "z") or (a$ >= "A" and a$ <= "Z") or a$=" " then begin
+    if len(name$) < 12 then begin
+      cursor_state = 0
+      gosub draw_cursor
+      tx = cursor_tx
+      tclr = cursor_tx / 8 + $40
+      gosub plot_text
+      cursor_tx = cursor_tx + 8
+      cursor_tmr = ti - 1
+      name$ = name$ + a$
+    bend
+  bend
+
+  if a$ = KEY_DEL and cursor_tx > 0 then begin
+    cursor_state = 0
+    gosub draw_cursor
+    cursor_tx = cursor_tx - 8
+    gosub draw_cursor
+    cursor_tmr = ti - 1
+    name$ = left$(name$, len(name$) - 1)
+  bend
+  return
+
+
+'-------------
+.handle_cursor
+'-------------
+  if (ti - cursor_tmr) > .5 then begin
+    cursor_tmr = ti
+    if cursor_state = 0 then begin
+      cursor_state = 1
+    bend: else begin
+      cursor_state = 0
+    bend
+    gosub draw_cursor
+  bend
+  return
+
+
+'-----------
+.draw_cursor
+'-----------
+  b$ = "    "
+  if cursor_state = 1 then b$ = "{x12}" + b$ : else b$ = "{x92}" + b$
+  x = cursor_tx / 2
+  y = ty / 2
+  color cursor_tx / 8 + 16
+  for k = 0 to 3
+    cursor x, y + k
+    print b$;
+  next k
   return
 
 
@@ -141,6 +216,21 @@ clr
   for k = 0 to 3
     input #2, hs_name$(k)
     input #2, hs_score(k)
+  next k
+
+  dclose #2
+  return
+
+
+'-------------
+.save_hiscores
+'-------------
+  delete "scores"
+  dopen #2, "scores", w, u8
+
+  for k = 0 to 3
+    print #2, hs_name$(k)
+    print #2, hs_score(k)
   next k
 
   dclose #2
@@ -232,26 +322,30 @@ clr
 
   ty = 14
   for idx = 0 to 3
-    tx = 8
+    tx = 0
     tclr = lvl_clr(idx)
     a$ = hs_level$(idx) + ":"
     gosub plot_text
 
     ty = ty + 8
-    tx = 16
+    tx = 8
+    tclr = -1
     a$ = hs_name$(idx)
     gosub plot_text
 
-    tx = 8 * 10
+    tclr = lvl_clr(idx)
     a$ = str$(hs_score(idx))
+    tx = 160 - len(a$) * 8
     gosub plot_text
 
     ty = ty + 12
   next idx
 
   color 10
+  print "{x92}";
   a$ = "Press any key to exit high score menu"
   cursor (80 - len(a$)) / 2, 48
+  a$ = chr$(15) + a$ + chr$(143)
   print a$;
 
   return
