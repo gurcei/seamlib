@@ -1709,8 +1709,6 @@ clrscreen:
   cpy #50
   lbne --
 
-  rts
-
 //  ' set all rhs_trim=7 for all off-screen chars initially
 //  tmpw = WIDTH / 2 - 1
     +set16 maxx, WIDTH

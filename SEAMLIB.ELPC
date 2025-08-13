@@ -343,7 +343,7 @@ trap runstop_trapper
   gosub draw_text
 
   ty = ty + 2
-  tclr = 3
+  tclr = 6
   a$ = "  - https://paypal.me/gurcei"
   gosub draw_text
 
