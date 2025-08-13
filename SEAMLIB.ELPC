@@ -364,6 +364,7 @@ trap runstop_trapper
     if a$ = "v" then begin
       gosub restore_default_colours
       gosub do_cleanup
+      print chr$(147);
       dload "hiscore"
     bend
 
@@ -721,6 +722,7 @@ trap runstop_trapper
     bank 128
 
     gosub do_cleanup
+    print chr$(147);
     dload "hiscore"
   bend
 

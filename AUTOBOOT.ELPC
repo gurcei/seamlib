@@ -14,6 +14,7 @@
 #declare a$, k, offs, xemu_flag
 #declare rbw_clr, ctime, ret%
 #declare line_cnt, ch, skip_flag
+#declare core_year%, core_month%, core_day%
 
 
 '-------
@@ -122,14 +123,14 @@
 '------------------
 .is_core_date_older
 '------------------
-  if year% < 2024 then ret% = TRUE : return
-  if year% > 2024 then ret% = FALSE : return
+  if year% < core_year% then ret% = TRUE : return
+  if year% > core_year% then ret% = FALSE : return
 
-  if month% < 5 then ret% = TRUE : return
-  if month% > 5 then ret% = FALSE : return
+  if month% < core_month% then ret% = TRUE : return
+  if month% > core_month% then ret% = FALSE : return
 
-  if ds% < 24 then ret% = TRUE : return
-  if ds% > 24 then ret% = FALSE : return
+  if ds% < core_day% then ret% = TRUE : return
+  if ds% > core_day% then ret% = FALSE : return
 
   ' final case of dates being equal
   ret% = FALSE
@@ -143,11 +144,15 @@
 
   gosub format_fpga_hash
 
+  core_year% = 2025
+  core_month% = 4
+  core_day% = 21
+
   gosub is_core_date_older
 
-  if fpga_hash$<>"aaf4542" and ret% = TRUE then begin
+  if fpga_hash$<>"aaf4542d" or ret% = TRUE then begin
     print "{x93}{x11}{x11}{x1C}CORE WARNING{x5}: This game has been tested against this core:"
-    print "- 0.97 Release core: {x1E}aaf4542   2025-04-22{x5}"
+    print "- 0.97 Release core: {x1E}aaf4542d  2025-04-22{x5}"
     print "-         Your core: {x1C}";fpga_hash$;"  ";date$;"{x5}"
     print
     print "If experiencing problems, please download this core from the filehost:"
@@ -665,7 +670,7 @@
     ds% = ds% - 31
   bend
 
-  if month%=2 and not (year% and 3) and ds%>29 then begin
+  if month%=2 and (not (year% and 3)) and ds%>29 then begin
     month% = month% + 1
     ds% = ds% - 29
   bend
