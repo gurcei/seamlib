@@ -472,8 +472,9 @@ trap runstop_trapper
     skip_some_init = 1
   bend
 
+  bload "game.pal",p($ffd3100)
+
   if skip_some_init = 0 then begin
-    bload "game.pal",p($ffd3100)
     bload "chars.bin",p($40000),r
     bload "asmhelper"
   bend

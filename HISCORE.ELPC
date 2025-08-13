@@ -10,7 +10,25 @@ clr
 #declare idx, lvl_clr(3), cidx, rainbow_flag
 #declare default_hs_red&(32), default_hs_green&(32), default_hs_blue&(32)
 #declare tmr, ch, score$
-#declare cursor_tmr, cursor_tx, cursor_state, b$, name$
+#declare cursor_tmr, cursor_tx, cursor_state, b$, name$, tmp
+
+.music_vars
+'----------
+#define chunk_max = 50
+#declare chunk_cnt, chunk_idx, vidx, tmpo%, row
+#declare echo_m, echo_b, echo_sz = .05, chunk_rpt, echo_delay
+#declare v$(5,chunk_max), v
+#declare song$
+#declare v1$, v2$, v3$, v4$, v5$, v6$
+#declare curr_freq, curr_dir
+
+#declare seqcnt
+#declare seq_chunk(200), seq_extra(200)
+
+#declare plyptr, plyflag, ret%, tmp$, playidx%
+
+#declare attack, decay, sustain, release, waveform, pw
+
 
 '-------
 .defines
@@ -19,6 +37,8 @@ clr
 #define PLOT_PIXEL = $7f27
 #define KEY_DEL = "{x14}"
 #define KEY_RETURN = chr$(13)
+
+#define CMD_LOOP = -3
 
 
 '----
@@ -46,6 +66,9 @@ clr
     bend
 
     if ti - tmr > .1 then gosub cycle_hs_colours: tmr = ti
+
+    gosub parse_current_seqptr
+
   loop
 
   end
@@ -139,6 +162,9 @@ clr
     cursor_tmr = ti - 1
     name$ = left$(name$, len(name$) - 1)
   bend
+
+  gosub parse_current_seqptr
+
   return
 
 
@@ -194,6 +220,9 @@ clr
   bank 0
   bload "asmhelper"
   bank 128
+
+  song$ = "flight.p"
+  gosub load_song
 
   hs_level$(0) = "Extreme"
   hs_level$(1) = "Difficult"
@@ -299,6 +328,8 @@ clr
 
   next yy
 
+  gosub parse_current_seqptr
+
   return
 
 
@@ -372,5 +403,103 @@ clr
     poke $d310+k, default_hs_blue&(k)
   next k
 
+  return
+
+
+'---------
+.load_song
+'---------
+  dopen #2,(song$),r,u8
+
+  ' load melody chunks
+  ' ------------------
+  input #2, chunk_cnt
+  for chunk_idx = 0 to chunk_cnt - 1
+    for vidx=0 to 5
+      input #2,v$(vidx, chunk_idx)
+    next vidx
+  next chunk_idx
+
+  input #2,tmpo%
+
+  tempo tmpo%
+  
+  ' load envelopes
+  ' --------------
+  for row = 0 to 9
+    input #2, tmp$
+    input #2, attack
+    input #2, decay
+    input #2, sustain
+    input #2, release
+    input #2, waveform
+    input #2, pw
+
+    envelope row, attack, decay, sustain, release, waveform, pw
+  next row
+  print
+
+  ' load filter presets
+  ' -------------------
+  for row = 0 to 10
+    input #2, tmp$
+    input #2, tmp
+    input #2, tmp
+    input #2, tmp
+    input #2, tmp
+    input #2, tmp
+    input #2, tmp
+    input #2, tmp
+    input #2, tmp
+  next row
+
+  ' load sequence
+  ' -------------
+  seqcnt = 0
+  input #2, seqcnt
+  row = 0
+  do while row < seqcnt
+    input #2, seq_chunk(row)
+    input #2, seq_extra(row)
+    row = row + 1
+  loop
+
+
+  dclose #2
+
+  chunk_idx = 0
+  return
+
+
+'--------------------
+.parse_current_seqptr
+'--------------------
+  ret% = 0
+  if plyptr = -1 then ret%=1:return
+  if rplay(1)<>0 then ret%=1:return
+
+  k = seq_chunk(plyptr)
+  
+  if k >= 0 then begin
+    chunk_idx = k
+    if chunk_rpt <= 0 then chunk_rpt = seq_extra(plyptr)
+    gosub play_chunk_idx
+    playidx% = playidx% + 1
+    ret% = 1
+  bend
+
+  plyptr = plyptr + 1
+
+  if k = CMD_LOOP then plyptr = 0
+
+  if plyptr >= seqcnt then plyflag = 0 : plyptr = -1
+  return
+
+
+'--------------
+.play_chunk_idx
+'--------------
+  play v$(0, chunk_idx), v$(1, chunk_idx), v$(2, chunk_idx), {x5F}
+       v$(3, chunk_idx), v$(4, chunk_idx), v$(5, chunk_idx)
   return
 ÿ

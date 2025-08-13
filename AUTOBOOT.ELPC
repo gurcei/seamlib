@@ -218,24 +218,23 @@
   print "{x93}{x96}ABOUT{x5} (3/3)"
   print  "====="
 
-  print "The music was my cover of the theme song from a very old and forgotten" 
-  print "C64 game called 'Dungeon of the Algebra Dragons'."
-  print "My sister and I played this game to death back in our youth, and the"
-  print "annoyingly repetitive (yet catchy) theme is etched into our brains."
-  print "So see this cover as my attempt to pay homage to this early era of"
+  print "The in-game music was my cover of the theme song from a very old and" 
+  print "forgotten C64 game called 'Dungeon of the Algebra Dragons'."
+  print "See this cover as my attempt to pay homage to this early era of"
   print "computer gaming. Sure, games looked crude and simple back then, but"
   print "they still had their own charm!"
   print
-  print "Oh, and in case you were wondering..."
-  print "Yes, the game music is performed by {x9F}BASIC 65's 'PLAY'{x5} command! ;)"
+  print "Also, the high score music is my cover of another obscure C64 game"
+  print "called 'Flight Path 737' ;)"
+  print
+  print "...and yes, all music is performed by {x9F}BASIC 65's 'PLAY'{x5} command! ;)"
 
   print
 
-  print "Much in the same way, I hope you enjoy this simple game and find a"
-  print "similar flavour of charm to it also. For the MEGA65 community, I"
-  print "feel like this is our 1983-era, us devs are skilling up and sharing"
-  print "their humble creations. But as time rolls on, skills will grow and"
-  print "our projects will get more ambitious, showcasing more and more of"
+  print "For the MEGA65 community:"
+  print "I feel like this is our 1983-era, us devs are skilling up and sharing"
+  print "our humble creations. As time rolls on, our skills will grow and our"
+  print "projects will get more ambitious, showcasing more and more of"
   print "what the MEGA65 system is capable of."
 
   print "So here's looking forward to the years ahead of us!"
