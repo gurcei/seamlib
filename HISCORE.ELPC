@@ -211,6 +211,7 @@ clr
 .init
 '----
   print chr$(147);
+  z = fre(1)
 
   poke $d021, 0
   poke $d020, 0
@@ -293,7 +294,6 @@ clr
     c$ = mid$(a$, k + 1, 1)
     chr = asc(c$)
     
-    z = fre(1)
     gosub petscii_to_screencode
 
     if rainbow_flag=1 then tclr = cidx + $40 : cidx = mod(cidx + 1, 16)
@@ -301,6 +301,8 @@ clr
     gosub plot_chr
     tx = tx + 8
   next k
+
+  z = fre(1)
 
   return
 
@@ -351,6 +353,7 @@ clr
   '  print hs_level$(k) ; ": "; hs_name$(k); " - score: "; hs_score(k)
   'next k
 
+  z = fre(1)
   ty = 14
   for idx = 0 to 3
     tx = 0
