@@ -113,7 +113,8 @@
 
   gosub rom_check
 
-  gosub ntsc_to_pal
+  ' Spring works in both ntsc and pal, so this check not needed
+  ' gosub ntsc_to_pal
 
   clr
   dload "seamlib"
