@@ -133,7 +133,7 @@ clr
 
     gosub save_hiscores
 
-    dload "hiscores"
+    dload "hiscore"
   bend
 
   return
