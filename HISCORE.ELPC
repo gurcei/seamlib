@@ -132,6 +132,8 @@ clr
     hs_score(idx) = val(score$)
 
     gosub save_hiscores
+
+    dload "hiscores"
   bend
 
   return

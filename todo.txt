@@ -40,9 +40,9 @@ SPRING game
 - Ask Moana to write some text in the 'About' section, thanking the user for choosing to get her game and hoping that they enjoy it.
 - final test on hardware
   - check if works when copied to and run from real floppy disk
-  - lower volume on hardware during gameplay
-  - does rom switch work on hardware?
-  - test boot script behaviour for core-version checking
+  DONE- lower volume on hardware during gameplay
+  DONE- does rom switch work on hardware?
+  DONE- test boot script behaviour for core-version checking
   - test boot script behaviour for ntsc-to-pal switching (is it needed for this game?)
   DONE- Make level of difficulty choice easier to read on monitor (green on blue looks bad)
 
